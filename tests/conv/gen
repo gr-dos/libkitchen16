@@ -1,0 +1,583 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+no warnings 'portable';
+use autodie;
+use FindBin qw($RealBin);
+use Math::BigInt;
+use Math::BigRat;
+
+=head1 NAME
+
+gen - generate the data files of tests/conv
+
+=head1 SYNOPSIS
+
+  tests/conv/gen [--check]
+
+=head1 DESCRIPTION
+
+Writes tests/conv/data/*.DAT (committed). Each line of a data file is
+
+  BITS OFFSET ERR STRING
+
+separated by single spaces, where
+
+=over
+
+=item BITS
+
+the expected result as 16 hex digits (the IEEE 754 binary64 bits, upper
+case), or C<nan+> or C<nan-> when the result is a NaN: only "is a NaN" and
+its sign are compared;
+
+=item OFFSET
+
+the expected C<endptr> offset from the start of the string, in decimal (0
+when no conversion can be made);
+
+=item ERR
+
+C<R> if C<errno> must be C<ERANGE> after the call, C<-> if it must be left
+alone;
+
+=item STRING
+
+the input, to the end of the line, with every byte except the printable ASCII
+characters 0x21 to 0x7E other than the backslash written as C<\xHH> (two
+lower case hex digits); the backslash is C<\x5c>. So the string never contains a
+space, a backslash followed by anything but C<xHH>, or a line end, and the
+empty string is an empty field (the line ends after the third space).
+
+=back
+
+The expected values do not come from the host's C library. They are computed
+here, from the syntax rules of docs/spec/conv.md, by exact integer
+arithmetic (Math::BigInt): the rounding of the value of the decimal digits
+to the nearest double, ties to even, gradual underflow, and the C<ERANGE>
+rules (overflow; non-zero rounding to zero; inexact subnormal). The host is
+the cross-check: with C<--check> every decimal result is compared with
+Perl's own string to number conversion (which uses the host's C library),
+and a sample is verified again with a second method, exact rational
+arithmetic (Math::BigRat) on the neighbouring doubles. Any difference is
+reported and the exit status is 1. The generator also runs a self test of
+known values before it writes anything.
+
+The corpus is deterministic (fixed seed).
+
+=cut
+
+my $check = grep { $_ eq '--check' } @ARGV;
+
+# ------------------------------------------------------------------ oracle
+
+my $TWO52 = Math::BigInt->new(2)->bpow(52);
+my $TWO53 = Math::BigInt->new(2)->bpow(53);
+
+sub bitlen ($n) { length($n->as_bin) - 2 }
+
+# Round DIGITS * 10**E (DIGITS a positive BigInt) to a double. Returns
+# (magnitude bits, erange, inexact).
+sub round_dec ($d, $e) {
+  my ($num, $den) = $e >= 0
+    ? ($d->copy->bmul(Math::BigInt->new(10)->bpow($e)), Math::BigInt->bone)
+    : ($d->copy, Math::BigInt->new(10)->bpow(-$e));
+  my $s = bitlen($num) - bitlen($den) - 53;
+  $s = -1074 if $s < -1074;
+  my ($q, $r, $final_dn);
+  while (1) {
+    my ($n, $dn) = ($num->copy, $den->copy);
+    if ($s >= 0) { $dn->blsft($s) } else { $n->blsft(-$s) }
+    ($q, $r) = $n->bdiv($dn);
+    $final_dn = $dn;
+    last if $q < $TWO53;
+    $s++;
+  }
+  my $dn = $final_dn;
+  my $inexact = !$r->is_zero;
+  my $c = $r->copy->blsft(1)->bcmp($dn);
+  $q->binc if $c > 0 || ($c == 0 && $q->is_odd);
+  if ($q == $TWO53) { $q = $TWO52->copy; $s++ }
+  return ('0000000000000000', 1, 1) if $q->is_zero;                 # underflow to zero
+  if ($q < $TWO52) {                                # subnormal (s is -1074)
+    return (hexbits($q), $inexact ? 1 : 0, $inexact);
+  }
+  my $biased = $s + 1075;
+  return ('7FF0000000000000', 1, 1) if $biased >= 2047;
+  my $bits = Math::BigInt->new($biased)->blsft(52)->badd($q->copy->bsub($TWO52));
+  return (hexbits($bits), 0, $inexact);
+}
+
+# Bits are kept as 16 hex digit strings.
+sub hexbits ($n) {
+  return $n if !ref $n && $n =~ /^[0-9A-F]{16}$/;
+  my $h = ref $n ? substr($n->as_hex, 2) : sprintf('%x', $n);
+  return uc(('0' x (16 - length $h)) . $h);
+}
+
+# Parse the initial portion of $str by the spec. Returns
+# (expected bits string, offset, erange, decimal parts or undef).
+sub oracle ($str) {
+  my $pos = 0;
+  $pos++ while $pos < length($str) && substr($str, $pos, 1) =~ /^[ \t\n\x0b\x0c\r]$/;
+  my $neg = 0;
+  if (substr($str, $pos, 1) =~ /^[+-]$/) { $neg = substr($str, $pos, 1) eq '-'; $pos++ }
+  my $signbit = $neg ? '8' : '0';
+  pos($str) = $pos;
+  if ($str =~ /\G(?:([0-9]+)(?:\.([0-9]*))?|\.([0-9]+))(?:[eE]([+-]?)([0-9]+))?/gc) {
+    my $end = pos($str);
+    my ($ip, $fp, $fp2, $esign, $edigits) = ($1, $2, $3, $4, $5);
+    $ip //= '';
+    $fp = $fp2 if defined $fp2;
+    $fp //= '';
+    my $e10 = 0;
+    if (defined $edigits) {
+      (my $t = $edigits) =~ s/^0+//;
+      $t = '0' if $t eq '';
+      $e10 = length($t) > 7 ? 10_000_000 : $t + 0;
+      $e10 = -$e10 if $esign eq '-';
+    }
+    (my $digits = $ip . $fp) =~ s/^0+//;
+    my $scale = $e10 - length($fp);
+    if ($digits eq '') {
+      return ($signbit . '000000000000000', $end, 0, undef);
+    }
+    $digits =~ s/(0+)$// and $scale += length $1;
+    my $ordinal = length($digits) + $scale;
+    my ($mag, $erange);
+    if ($ordinal >= 311) {
+      ($mag, $erange) = ('7FF0000000000000', 1);
+    } elsif ($ordinal <= -326) {
+      ($mag, $erange) = ('0000000000000000', 1);
+    } else {
+      ($mag, $erange) = round_dec(Math::BigInt->new($digits), $scale);
+    }
+    my $h = $mag;
+    $h = sprintf('%X', hex(substr($h, 0, 1)) | ($neg ? 8 : 0)) . substr($h, 1);
+    return ($h, $end, $erange, [$digits, $scale]);
+  }
+  pos($str) = $pos;
+  if ($str =~ /\G(inf(?:inity)?)/gci) {
+    return ($neg ? 'FFF0000000000000' : '7FF0000000000000', pos($str), 0, undef);
+  }
+  pos($str) = $pos;
+  if ($str =~ /\Gnan(?:\([A-Za-z0-9_]+\))?/gci) {
+    return ($neg ? 'nan-' : 'nan+', pos($str), 0, undef);
+  }
+  return ('0000000000000000', 0, 0, undef);
+}
+
+# ------------------------------------------------------------- self test
+
+sub selftest {
+  my @t = (
+    ['1', '3FF0000000000000', 1, 0], ['-1', 'BFF0000000000000', 2, 0],
+    ['1.5', '3FF8000000000000', 3, 0],     ['0.1', '3FB999999999999A', 3, 0], ['1e23', '44B52D02C7E14AF6', 4, 0],
+    ['1e309', '7FF0000000000000', 5, 1], ['-1e309', 'FFF0000000000000', 6, 1],
+    ['5e-324', '0000000000000001', 6, 1], ['2.4703282292062328e-324', '0000000000000001', 23, 1],
+    ['2.4703282292062327e-324', '0000000000000000', 23, 1],
+    ['-1e-400', '8000000000000000', 7, 1], ['-0', '8000000000000000', 2, 0],
+    ['0e99999', '0000000000000000', 7, 0],
+    ['1.7976931348623157e308', '7FEFFFFFFFFFFFFF', 22, 0],
+    ['1.7976931348623159e308', '7FF0000000000000', 22, 1],
+    ['2.2250738585072014e-308', '0010000000000000', 23, 0],
+    ['2.2250738585072011e-308', '000FFFFFFFFFFFFF', 23, 1],
+    ['9007199254740993', '4340000000000000', 16, 0],
+    ['9007199254740993.0000001', '4340000000000001', 24, 0],
+    ['1e', '3FF0000000000000', 1, 0], ['1e+', '3FF0000000000000', 1, 0],
+    ['0x10', '0000000000000000', 1, 0], ['.', '0000000000000000', 0, 0],
+    ['inFinity!', '7FF0000000000000', 8, 0], ['infinit', '7FF0000000000000', 3, 0],
+    ['-nan(a_1)x', 'nan-', 9, 0], ['nan(a b)', 'nan+', 3, 0], ['nan(', 'nan+', 3, 0],
+  );
+  for my $t (@t) {
+    my ($s, $bits, $off, $er) = @$t;
+    $s =~ s/\\t/\t/g;
+    next unless defined $bits;
+    my @g = oracle($s);
+    die "selftest: '$s' gave @g[0..2], expected $bits $off $er\n"
+      unless $g[0] eq $bits && $g[1] == $off && $g[2] == $er;
+  }
+  my @g = oracle("  \t+.5e1x");
+  die "selftest ws\n" unless $g[0] eq '4014000000000000' && $g[1] == 8;
+}
+selftest();
+
+# ------------------------------------------------------------- output
+
+my $datadir = "$RealBin/data";
+mkdir $datadir unless -d $datadir;
+
+my %fh;
+my %count;
+my @sample;
+my $problems = 0;
+
+sub escape ($s) {
+  $s =~ s{([^\x21-\x5b\x5d-\x7e])}{sprintf '\\x%02x', ord $1}ger;
+}
+
+sub emit ($file, $str) {
+  my ($bits, $off, $erange, $parts) = oracle($str);
+  my $line = join ' ', $bits, $off, $erange ? 'R' : '-', escape($str);
+  die "line too long for the test programs: $file\n" if length($line) > 2000;
+  unless ($fh{$file}) {
+    open $fh{$file}, '>', "$datadir/$file.DAT";
+    binmode $fh{$file};
+  }
+  print { $fh{$file} } "$line\n";
+  $count{$file}++;
+  verify($str, $bits, $off, $erange, $parts, $count{$file}) if $check && $parts;
+}
+
+# --------------------------------------------------- cross-check (--check)
+
+sub rat_of_bits ($mag) {
+  my $b = Math::BigInt->from_hex('0x' . $mag);
+  my $ex = $b->copy->brsft(52)->numify;
+  my $m = $b->copy->band($TWO52->copy->bdec);
+  if ($ex == 0) { $ex = 1 } else { $m->badd($TWO52) }
+  my $p = $ex - 1075;
+  return $p >= 0 ? Math::BigRat->new($m->blsft($p)) : Math::BigRat->new($m, Math::BigInt->new(2)->bpow(-$p));
+}
+
+sub verify ($str, $bits, $off, $erange, $parts, $n) {
+  # 1. the host's conversion, for the numeric prefix
+  my $prefix = substr($str, 0, $off);
+  $prefix =~ s/^[ \t\n\x0b\x0c\r]+//;
+  my $host = unpack 'H16', pack 'd>', 0 + $prefix;
+  (my $hostmag = uc $host) =~ s/^8(?=0{15}$)/0/;
+  (my $ormag = $bits) =~ s/^8(?=0{15}$)/0/;   # Perl drops the sign of a zero
+  if ($hostmag ne $ormag) {
+    $problems++;
+    warn "host differs: '" . escape($str) . "' oracle $bits host " . uc($host) . "\n" if $problems < 20;
+  }
+  # 2. an independent exact check on a sample: v lies between the midpoints
+  # to the neighbouring doubles, ties to even
+  return if $n % 5;
+  my ($digits, $scale) = @$parts;
+  my $v = Math::BigRat->new(Math::BigInt->new($digits));
+  $v = $scale >= 0 ? $v * Math::BigInt->new(10)->bpow($scale) : $v / Math::BigInt->new(10)->bpow(-$scale);
+  (my $mag = $bits) =~ s/^([0-7]|[89A-F])/sprintf '%X', hex($1) & 7/e;
+  my $x = Math::BigInt->from_hex("0x$mag");
+  if ($x >= Math::BigInt->from_hex('0x7FF0000000000000')) {
+    # overflow: v is at least the midpoint above the largest finite value
+    my $max = rat_of_bits('7FEFFFFFFFFFFFFF');
+    my $mid = $max + Math::BigRat->new(Math::BigInt->new(2)->bpow(970));
+    unless ($v >= $mid) { $problems++; warn "verify overflow: " . escape($str) . "\n" }
+    return;
+  }
+  my $cur = rat_of_bits($mag);
+  my $lo = $x->is_zero ? undef : rat_of_bits(hexbits($x->copy->bdec));
+  my $hi = rat_of_bits(hexbits($x->copy->binc));
+  my $ok = 1;
+  my $odd = $x->is_odd;
+  if (defined $lo) {
+    my $mid = ($lo + $cur) / 2;
+    $ok = 0 if $v < $mid || ($v == $mid && $odd);
+  }
+  my $midh = ($cur + $hi) / 2;
+  $ok = 0 if $v > $midh || ($v == $midh && $odd);
+  unless ($ok) { $problems++; warn "verify failed: " . escape($str) . " $bits\n" }
+}
+
+# ---------------------------------------------------------------- helpers
+
+my $seed = 20240229;
+srand($seed);
+
+sub randint ($n) { int rand $n }
+
+# The digits of N with K decimal places, as "DDD.FFF" ($form 0) or "DDDe-K"
+# ($form 1); $suffix is a string of digits appended after the last place.
+sub scaled ($n, $k, $suffix = '', $form = 0) {
+  my $digits = $n->bstr . $suffix;
+  $k += length $suffix;
+  if ($form) {
+    return $k ? "${digits}e-$k" : $digits;
+  }
+  return $digits if $k == 0;
+  $digits = ('0' x ($k - length($digits) + 1)) . $digits if length($digits) <= $k;
+  return substr($digits, 0, length($digits) - $k) . '.' . substr($digits, -$k);
+}
+
+# The exact decimal of M * 2**E, as a (BigInt, decimal places) pair.
+sub exact ($m, $e) {
+  return ($m->copy->blsft($e), 0) if $e >= 0;
+  return ($m->copy->bmul(Math::BigInt->new(5)->bpow(-$e)), -$e);
+}
+
+my $B = sub { Math::BigInt->new(shift) };
+
+# ------------------------------------------------------------------ syntax
+
+{
+  my @ws = ("\x20", "\t", "\n", "\x0b", "\x0c", "\r");
+  my @s;
+  # plain numbers, signs, the shapes of a decimal number
+  push @s, qw(0 1 -1 +1 7 42 00 007 -007 123456789 0.0 -0.0 +0.0 0. .0 0.5 .5 -.5 +.5 5. -5. +5.
+    1.5 1.50 01.5 1.5e0 1e0 1e1 1E1 1e+1 1E+1 1e-1 1E-1 1e01 1e+01 1e-01 1.e1 .1e1 1.e-1
+    0e0 -0e0 0e5 0e-5 0.e5 .0e5 0.0e+99999 -0.0e-99999 1e5 1e50 1e-50 123e2 123e-2 12.34e-1
+    1.0000000000000000000000000000001 0.1 0.2 0.3 0.7 100 1000000 3.14159265358979323846
+    2.718281828459045 1e22 1e23 1e24 123456789012345678901234567890 4294967295 4294967296
+    65535 65536 32767 32768 -32768 -32769 2147483647 2147483648 18446744073709551615
+    18446744073709551616 9007199254740991 9007199254740992 9007199254740993
+    0.1e1 0.01e2 000.000100e4 1000e-3 10000000000000000000e-19);
+  # exponent markers without digits end the number before the e
+  push @s, qw(1e 1E 1e+ 1e- 1E+ 1E- 1.5e 1.5e+ 1.5e- .5e .5e+ 0e 0e- 12e 12e+ 12e-x 1ex 1e+x 1e-x 1e++5
+    1e+-5 1e--5 1e5e5 1e5.5 1e5x 1e 1ee5 1e.5);
+  # shapes that are not a number, or end early
+  push @s, ('', ' ', '  ', "\t", "\n", "\t\n\x0b\x0c\r ", qw(. + - +. -. .e5 +.e5 -.e1 e5 E5 +e5 -e5 .- .+ ..5
+    +-5 -+5 ++5 --5 +.- 1..5 1.5.5 1.5.e5 1_0 1:5 1-5 1+5 1/5 5x 5X 5a 5f 5L 5l 5d5 5e5x
+    0x 0x1 0x10 0X10 0x1.8p3 0x1p0 0x.8 0xg 0b101 0o17 00x10 -0x10 +0x10 0xe5 0x1e5 0x1e+5
+    0xinf 0xnan));
+  push @s, ("1,5", "1\x00", "1\x01", "1 5", "1\t5", "1\n", "1\r\n", "1 ", " 1 ", "1e5 ", "1e5\n", "1..", "1.\x80",
+    "1\xff", "\x80" . "1", "\xa0" . "1", "\x85" . "1", "\x1c" . "1", "\x1f" . "1", "\x00" . "1",
+    "\xd9\xa1", "\xef\xbc\x91", "1\xd9\xa1");
+  # white space: each of the six, alone and in runs, before sign and digits
+  for my $w (@ws) {
+    push @s, $w . '1', $w . '-1', $w . '+1.5e2', $w . $w . $w . '7', $w . '.', $w . 'x', $w, "1$w", $w . 'inf', $w . 'nan';
+  }
+  push @s, join('', @ws) . '12.5', join('', reverse @ws) . '-12.5e1x', ' ' x 40 . '1', "\t" x 7 . '-0';
+  push @s, ' - 1', "- \t1", "+ 1", "-\n1", ' +', ' -', ' -.', ' +.5';
+  # signs of zero and results that round to zero or infinity
+  push @s, qw(-0 +0 -0.0e0 -0e-400 -0.000e99999 -1e-400 1e-400 -1e-325 4e-324 -4e-324 1e-324 1e400 -1e400
+    +1e400 1e309 -1e309 1e310);
+  # inf / infinity / nan: spellings, signs, partial matches, trailing text
+  for my $w (qw(inf INF Inf iNf inF infinity INFINITY Infinity iNfInItY infinitY)) {
+    push @s, $w, "-$w", "+$w", " $w", "$w ", "${w}x", "${w}1", "$w(", "-${w}0";
+  }
+  push @s, qw(infinit infinite infinitx infinityy infinityinf infi infin infini infinitu in i if ifn inff
+    infe5 inf5 inf.5 inf-5 inf+ +-inf -+inf --inf ++inf - inf +inf- inf nfinity);
+  push @s, ('- inf', '+ inf', ' -  inf', "inf inity", "inf\tinity", "in f", 'in', 'INFIN');
+  for my $w (qw(nan NAN Nan nAn naN NaN)) {
+    push @s, $w, "-$w", "+$w", " $w", "$w ", "${w}x", "${w}1", "-${w}x", "${w}(abc)", "-${w}(abc)", "${w}(abc)x";
+  }
+  push @s, ('nan(', 'nan(abc', 'nan(abc)', 'nan(a)', 'nan(0)', 'nan(_)', 'nan(a_1)', 'nan(A_B_9)',
+    'nan(abc)def', 'nan(abc))', 'nan((abc)', 'nan(a b)', 'nan(a-b)', 'nan(a.b)', 'nan( abc)', 'nan(abc )',
+    'nan(!)', "nan(a\tb)", "nan(\x80)", 'nan(a(b)', 'nan (abc)', 'nanx', 'nan1', 'na', 'n', 'nn', 'nand',
+    'NaN(0x7ff)', 'nan(0x7ff)', 'nan(123456789012345678901234567890)', '-nan(a b)', '+nan(', '+-nan', '-+nan',
+    '- nan', 'nan-', 'nan+5', 'nan.5', 'nane5', 'nan e5');
+  # mixtures
+  push @s, ('1inf', '1nan', '1e5inf', '.nan', '.inf', '0nan', 'e inf', 'infe', 'nane', 'inf1e5', 'nan1e5',
+    '1e999inf', 'in' . 'f' x 5, 'infinity' . 'y' x 100);
+  # decimal numbers with more fraction or exponent text after
+  push @s, ('1.5abc', '1.5e5abc', '1.5e5.', '1.5e5e', '1.5e+5+', '3.14.15', '3.14e', '3.14e-', '3.14e-x',
+    '99999999999999999999999999999999999999e-38x');
+  emit(syntax => $_) for @s;
+}
+
+# ------------------------------------------------------------------ pow10
+
+{
+  for my $e (-330 .. 310) {
+    emit(pow10 => "1e$e");
+    emit(pow10 => "9.999999999999999e" . ($e - 1)) if $e % 2;
+    emit(pow10 => "1.0000000000000002e$e") if $e % 3 == 0;
+  }
+  # written out in full
+  for my $e (-30 .. 30) {
+    my $s = $e >= 0 ? '1' . '0' x $e : '0.' . '0' x (-$e - 1) . '1';
+    emit(pow10 => $s);
+    emit(pow10 => '-' . $s);
+  }
+  for my $e (1 .. 20) { emit(pow10 => '1' . '0' x $e . '.0') }
+}
+
+# ------------------------------------------------------------------ pow2
+
+{
+  my %ks;
+  $ks{$_} = 1 for grep { $_ % 4 == 0 } -1076 .. 1023;
+  $ks{$_} = 1 for -1080 .. -1020, -64 .. 64, 1000 .. 1023, -1022, -1023, -1074, -1075, -1073, 52, 53, 54, 1023;
+  for my $k (sort { $a <=> $b } keys %ks) {
+    my ($n, $dp) = exact($B->(1), $k);
+    emit(pow2 => scaled($n, $dp, '', $k % 8 == 3 ? 1 : 0));
+    emit(pow2 => '-' . scaled($n, $dp)) if $k % 64 == 0;
+  }
+}
+
+# ------------------------------------------------------------------ halfway
+
+# The midpoint between M * 2**E and (M + 1) * 2**E is (2M + 1) * 2**(E - 1).
+sub halfway ($file, $m, $e, $variant, $form) {
+  my ($n, $dp) = exact($m->copy->bmul(2)->binc, $e - 1);
+  my $s = $variant eq 'mid'    ? scaled($n, $dp, '', $form)
+        : $variant eq 'above'  ? scaled($n, $dp, '1', $form)
+        : $variant eq 'zeros'  ? scaled($n, $dp, '0' x 7, $form)
+        : $variant eq 'below'  ? scaled($n->copy->bdec, $dp, '', $form)
+        : $variant eq 'below9' ? scaled($n->copy->bdec, $dp, '9' x 7, $form)
+        : die;
+  emit($file => $s);
+  emit($file => "-$s") if $e % 61 == 0;
+}
+
+{
+  my $i = 0;
+  # subnormals: M of every bit length
+  for my $bits (1 .. 52) {
+    my $m = $B->(1)->blsft($bits - 1);
+    $m->badd($B->(2)->bpow($bits - 1)->bsub(1)->bmul(rand() < 0.5 ? 0 : 1)) if $bits > 1 && $bits % 3;
+    $m = $B->(2)->bpow($bits)->bdec if $bits % 5 == 0;
+    $m->binc if $bits % 2 && $m->is_even;
+    halfway(half => $m, -1074, 'mid', $bits % 2);
+    halfway(half2 => $m, -1074, $_, $bits % 2) for $bits % 4 == 0 ? qw(above below below9 zeros) : ();
+  }
+  # every binade of the normal range: M random with 53 bits, parity alternating
+  for my $e (-1074 .. 971) {
+    my $m = $B->(0);
+    $m->badd($B->(randint(1 << 20)))->blsft(20)->badd($B->(randint(1 << 20)))->blsft(13)->badd($B->(randint(1 << 13)));
+    $m->bmod($TWO52)->badd($TWO52);
+    $m->binc if ($m->is_odd ? 1 : 0) != (($e + 1074) % 2);
+    $m = $TWO52->copy if $e % 29 == 0;
+    $m = $TWO53->copy->bdec if $e % 31 == 0;
+    $i++;
+    halfway(half => $m, $e, 'mid', $i % 2);
+    halfway(half2 => $m, $e, ('above', 'below', 'below9', 'zeros')[$i % 4], $i % 3 == 0 ? 1 : 0) if $i % 6 == 0;
+  }
+  # the largest finite and the overflow tie
+  halfway(half2 => $TWO53->copy->bdec, 971, $_, 0) for qw(mid above below zeros);
+  halfway(half2 => $TWO52->copy, -1074 + 0, $_, 0) for qw(mid above below);
+}
+
+# ------------------------------------------------------------------ edge
+
+{
+  my @s = qw(1.7976931348623157e308 1.7976931348623158e308 1.7976931348623159e308 1.797693134862316e308
+    1.79769313486231570814527423731704356798070e308 1.79769313486231580793728971405303415079934e308
+    1.8e308 9e307 2e308 1e308 4.9406564584124654e-324 4.9406564584124655e-324 4.940656458412465e-324
+    5e-324 4e-324 3e-324 2.5e-324 2.4703282292062328e-324 2.4703282292062327e-324 2.47032822920623272e-324
+    2.47032822920623273e-324 2.4703282292062327208e-324 2e-324 1e-323 1.5e-323 7.4109846876186981e-324
+    7.4109846876186982e-324 9.8813129168249309e-324 1e-310 1e-320 2.225073858507201e-308
+    2.2250738585072009e-308 2.2250738585072011e-308 2.2250738585072012e-308 2.2250738585072013e-308
+    2.2250738585072014e-308 2.2250738585072015e-308 2.2250738585072016e-308 2.225073858507202e-308
+    2.2250738585072e-308 2.2250738585073e-308 2.2250738585072010e-308
+    1.00000000000000011102230246251565404236316680908203125
+    1.00000000000000011102230246251565404236316680908203124
+    1.00000000000000011102230246251565404236316680908203126
+    1.000000000000000111022302462515654042363166809082031250000000000000001
+    1.00000000000000033306690738754696212708950042724609375
+    0.99999999999999994448884876874217297882
+    0.999999999999999944488848768742172978818416595458984375
+    0.99999999999999994448884876874217297881841659545898437500001
+    0.9999999999999999444888487687421729788184165954589843749999999
+    9007199254740992.5 9007199254740993.5 9007199254740992.0000001 9007199254740993.0000001
+    9007199254740994.5 4503599627370496.5 4503599627370497.5 4503599627370497.50000000001
+    0.1 0.2 0.3 0.7 0.8 8.5e-5 1e23 8.41e21 5e-5 1.2345678901234567e-10 123456789e-300 4.35e15
+    2251799813685248.5 18014398509481984.5 1.00000000000000022204460492503130808472633361816406251
+    2.2250738585072011e-308 2.2250738585072012e-308 6.9533558078350043e-310 1.7e-308 1.8e-308 3e-308);
+  for my $e (map { $_ } -1074, -1073, -1030, -1023, -1022, -1021, -1000, -52, -1, 0, 1, 52, 53, 1000, 1022, 1023) {
+    my ($n, $dp) = exact($B->(1), $e);
+    push @s, scaled($n, $dp);
+  }
+  # exact decimals of the values around the edges, with M and E: M * 2**E
+  for my $me ([0x1FFFFFFFFFFFFF, 971], [0x1FFFFFFFFFFFFE, 971], [0x10000000000000, -1074 + 0],
+              [1, -1074], [2, -1074], [3, -1074], [0xFFFFFFFFFFFFF, -1074], [0xFFFFFFFFFFFFE, -1074],
+              [0x10000000000000, -1074], [0x10000000000001, -1074], [0x10000000000002, -1074],
+              [0x1FFFFFFFFFFFFF, -1075], [0x1FFFFFFFFFFFFF, -1074 - 52 + 51], [0x20000000000000, -1075 + 0]) {
+    my ($n, $dp) = exact($B->($me->[0]), $me->[1]);
+    push @s, scaled($n, $dp), scaled($n, $dp, '', 1);
+    push @s, scaled($n, $dp, '1'), scaled($n->copy->bdec, $dp, '9999') if $n > 1;
+  }
+  # exactly 2**-1075 (ties to even, to zero), a hair above and below
+  {
+    my ($n, $dp) = exact($B->(1), -1075);
+    push @s, scaled($n, $dp), scaled($n, $dp, '1'), scaled($n, $dp, '0' x 30), scaled($n->copy->bdec, $dp);
+    push @s, scaled($n, $dp, '0' x 30 . '1');
+  }
+  emit(edge => $_) for @s;
+  emit(edge => "-$_") for grep { rand() < 0.4 } @s;
+}
+
+# ------------------------------------------------------------------ longdig
+
+{
+  my @s;
+  my $pad = sub ($s, $total) { $s . '0' x ($total - length($s)) };
+  # a long run of zeros, then a digit that decides
+  push @s, '1' . '0' x 900 . 'e-900', '1' . '0' x 900, '1' . '0' x 900 . 'e-899', '1' . '0' x 799,
+    '1.' . '0' x 900, '1.' . '0' x 900 . '1e0' x 0, '0.' . '0' x 900 . '1', '0.' . '0' x 900 . '1e901',
+    '0.' . '0' x 900 . '1e900', '0.' . '0' x 800 . '1e-0', '0.' . '0' x 799 . '5e800', '0' x 900 . '1.5',
+    '0' x 900, '0' x 900 . '.' . '0' x 900, '-' . '0' x 900 . '.' . '0' x 900 . 'e5', '1' . '0' x 1000 . 'e-1000',
+    '1.5' . '0' x 900 . 'e0x', '1.5' . '0' x 900 . 'e', '123456789' . '0' x 900 . 'e-900', ' ' . '9' x 900,
+    '9' x 900 . 'e-900', '9' x 800 . 'e-800', '9' x 799 . 'e-799', '9' x 801 . 'e-801',
+    '0.' . '9' x 900, '1' . '0' x 308, '1' . '0' x 309, '1' . '0' x 400, '0.' . '0' x 322 . '1', '0.' . '0' x 323 . '1',
+    '0.' . '0' x 330 . '1', '0.' . '0' x 330 . '1' . '0' x 900, '0.' . '0' x 322 . '2' . '0' x 900 . '1';
+  # ties and near ties extended to 800 or more digits
+  for my $e (-1074, -1073, -1050, -1023, -1022, -1000, -500, -200, -60, -53, -10, 0, 1, 10, 52, 60, 100, 500, 971) {
+    my $m = $e == -1074 ? $B->(0x1ABCDEF123457) : $TWO52->copy->badd($B->(0x5A5A5A5A5A5A5 + $e + 2000))->bmod($TWO53);
+    $m->badd($TWO52) if $m < $TWO52;
+    $m->binc if $m->is_odd;                     # even M: the tie rounds down
+    $m->binc if $e % 2;                         # odd M: the tie rounds up
+    my ($n, $dp) = exact($m->copy->bmul(2)->binc, $e - 1);
+    my $base = $n->bstr;
+    my $len = length($base);
+    for my $total (798 .. 802, 1000) {
+      my $z = $total - $len;
+      next if $z < 1;
+      push @s, scaled($n, $dp, '0' x $z), scaled($n, $dp, '0' x ($z - 1) . '1');
+      push @s, scaled($n->copy->bdec, $dp, '9' x $z) if $total % 2;
+      push @s, scaled($n, $dp, '0' x ($z - 1) . '1', 1) if $total == 800;
+    }
+    push @s, scaled($n, $dp, '0' x 850 . '1'), scaled($n, $dp, '0' x 850);
+  }
+  # long random numbers
+  for my $i (1 .. 12) {
+    my $nd = 800 + randint(300);
+    my $d = join '', map { randint(10) } 1 .. $nd;
+    $d =~ s/^0+/1/;
+    my $point = randint($nd);
+    my $e = randint(500) - 250 - ($nd - $point);
+    push @s, substr($d, 0, $point) . '.' . substr($d, $point) . ($i % 2 ? "e$e" : '') if $i % 3;
+    push @s, $d . 'e' . (-$nd + randint(600) - 300);
+  }
+  emit(longdig => $_) for grep { length($_) < 1950 } @s;
+}
+
+# ------------------------------------------------------------------ bigexp
+
+{
+  # exponents beyond +-99999 are not needed by the spec but any
+  # implementation must not wrap around
+  my @s = qw(1e99999 1e-99999 -1e99999 -1e-99999 1e5 0e99999 0e-99999 -0e99999 0.0e99999 00000e99999
+    1e100000 1e-100000 1e123456 1e-123456 1e999999 1e-999999 1e999999999 1e-999999999 -1e999999999
+    0e999999999 0.5e99999 0.5e-99999 12345e99995 12345e-100004 1000000000000e-99999
+    99999999999999999999e99990 1e32768 1e-32768 1e32767 1e-32767 1e65535 1e-65535 1e65536 1e-65536
+    1e65616 1e-65616 1e65537 1e-65537 1.5e19999 1e19999x 1e+99999x 1e-99999x);
+  push @s, '0.' . '0' x 100 . '1e100', '1' . '0' x 400 . 'e-400', '1' . '0' x 400 . 'e-401',
+    '1' . '0' x 400 . 'e-399', '0.' . '0' x 400 . '1e400', '0.' . '0' x 400 . '1e399', '0.' . '0' x 400 . '1e401',
+    '0.' . '0' x 400 . '1e65536', '0.' . '0' x 400 . '1e65937';
+  emit(bigexp => $_) for @s;
+}
+
+# ------------------------------------------------------------------ random
+
+{
+  my $n = 1800;
+  for my $i (1 .. $n) {
+    my $nd = 1 + randint(25);
+    my $d = join '', map { randint(10) } 1 .. $nd;
+    $d =~ s/^0+(?=.)//;
+    $d = (1 + randint(9)) . substr($d, 1) if $i % 7 && length($d) > 1 && substr($d, 0, 1) eq '0';
+    my $point = $i % 3 ? randint(length($d) + 1) : -1;
+    my $s = $point < 0 ? $d : substr($d, 0, $point) . '.' . substr($d, $point);
+    $s = ".$s" if $s =~ /^\./ == 0 && 0;
+    my $e = randint(660) - 335;
+    $e = randint(60) - 30 if $i % 5 == 0;
+    my $form = randint(4);
+    $s .= ($form == 0 ? 'e' : $form == 1 ? 'E' : $form == 2 ? 'e+' : 'e') . ($form == 2 ? abs($e) : $e) if $form != 3 || $i % 2;
+    $s = '-' . $s if randint(2);
+    $s = ('', ' ', "\t", "\n  ")[randint(4)] . $s if randint(4) == 0;
+    $s .= ('', '', '', 'x', ' 5', 'e', 'e+', '.5', 'f', '(a)')[randint(10)];
+    emit(random => $s);
+  }
+}
+
+# ---------------------------------------------------------------- finish
+
+close $_ for values %fh;
+say STDERR sprintf('%-8s %5d lines', $_, $count{$_}) for sort keys %count;
+if ($check) {
+  say STDERR $problems ? "check: $problems problems" : 'check: host and exact check agree';
+  exit 1 if $problems;
+}
