@@ -63,12 +63,12 @@ A function does not trap and does not set `errno` except where it says so; it ne
 | `cosh`, `sinh` | | overflow | `cosh(±inf)` is `+inf`, `sinh(±inf)` is `±inf`, both without error |
 | `tanh` | | | `tanh(±inf)` is `±1`; no error |
 | `exp` | | overflow, underflow | `exp(+inf)` is `+inf` and `exp(-inf)` is `+0`, without error |
-| `fmod(x, y)` | `y` is `0`, or `x` is `±inf` | | the result has the sign of `x` and a magnitude less than `|y|`; `fmod(x, ±inf)` is `x`; `fmod(±0, y)` is `±0` |
+| `fmod(x, y)` | `y` is `0`, or `x` is `±inf`, when neither argument is a NaN (a NaN argument gives a NaN, no error) | | the result has the sign of `x` and a magnitude less than `|y|`; `fmod(x, ±inf)` is `x`; `fmod(±0, y)` is `±0` |
 | `frexp(x, &e)` | | | for finite non-zero `x`: `0.5 <= |m| < 1` and `x = m * 2^e`, also for subnormals; for `0`, `±inf` and NaN: returns `x` and stores 0 |
 | `ldexp(x, e)` | | overflow, underflow | exact in the range; `x` itself for `0`, `±inf`, NaN. `e` is an `int` of any value |
 | `log`, `log10` | `x < 0` | `x = 0`: returns `-HUGE_VAL` with `ERANGE` | `log(+inf)` is `+inf`, no error; `log(-0)` as `log(+0)` |
 | `modf(x, &i)` | | | `|result|` is the fractional part and `*i` the integral part, both with the sign of `x`; for `±inf`: returns `±0`, `*i` is `x`; for NaN: both NaN |
-| `pow(x, y)` | `x < 0` and `y` is finite and not an integer | overflow, underflow; `x = 0` and `y < 0`: returns `HUGE_VAL` (negative if `x` is `-0` and `y` an odd integer) with `ERANGE` | `pow(0, 0)` is `1`; `pow(x, ±inf)`, `pow(±inf, y)` and `pow(-1, ±inf)` follow IEEE 754 / C99 Annex F, without error; `pow(x<0, integer y)` has the sign `-` when `y` is odd |
+| `pow(x, y)` | finite `x < 0` and finite non-integer `y` | overflow, underflow; `x = 0` and finite `y < 0`: returns `HUGE_VAL` (negative if `x` is `-0` and `y` an odd integer) with `ERANGE` | `pow(0, 0)` is `1`; `pow(x, ±inf)`, `pow(±inf, y)` and `pow(-1, ±inf)` follow IEEE 754 / C99 Annex F, without error; `pow(x<0, integer y)` has the sign `-` when `y` is odd |
 | `sqrt` | `x < 0` (`sqrt(-0)` is `-0`, not an error) | | `sqrt(+inf)` is `+inf` |
 
 ## Size and linking
