@@ -107,9 +107,15 @@ which gets the exact digits from Math::BigInt arithmetic on the binary value
 (round half even on the exact value), and not from Perl's sprintf. With
 --verify, every valid line that has no infinity, NaN or null pointer is
 also formatted by Perl's own sprintf over the host's C library, and compared:
-on this host (macOS) 31,628 lines agree, and one differs: '%.0f' of
-0x3FE0000000000001 (0.5 plus one unit in the last place), which Perl
-rounds down to 0 and the spec (and the exact value) says is 1. The spec is
+with Perl 5.40 on macOS 31,628 lines agree except one, and on Linux (glibc, in
+the build container) two more differ:
+
+  - '%.0f' of 0x3FE0000000000001 (0.5 plus one unit in the last place): Perl
+    gives 0, the spec (and the exact value) 1;
+  - '% #1g' and '%-+ #.6g' of 999999.5 (0x412E847F00000000): Perl on glibc
+    gives `1.e+06`, the spec (and C: # keeps the zeros) `1.00000e+06`.
+
+The data files written on the two hosts are identical. The spec is
 followed where Perl or the C library differs from it:
 
   - inf and nan (Perl prints Inf, NaN; the spec: inf, nan, -nan with the sign
