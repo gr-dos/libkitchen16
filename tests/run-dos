@@ -93,6 +93,7 @@ write_file("$dir/DOSBOX.CNF", <<~"END");
   [cpu]
   core=normal
   cputype=8086
+  cycles=max
   [autoexec]
   mount c "$abs"
   c:
