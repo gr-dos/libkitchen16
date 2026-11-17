@@ -142,7 +142,7 @@ int main(void)
     CHECK(r == 32767 && T[0] == '1' && run_of(32767, ' ', 0, '1') && T[32767] == 0 && intact(32768));
 
     clear();
-    r = sprintf(T, "%*d", -32768, 5);    /* the absolute value of INT_MIN is taken as 32767 */
+    r = sprintf(T, "%*d", -32767 - 1, 5);    /* the absolute value of INT_MIN is taken as 32767 */
     CHECK(r == 32767 && T[0] == '5' && T[1] == ' ' && T[32766] == ' ' && T[32767] == 0 && intact(32768));
 
     clear();
@@ -150,7 +150,7 @@ int main(void)
     CHECK(r == 32767 && run_of(32767, '0', 32766, '5') && intact(32768));
 
     clear();
-    r = sprintf(T, "%.*d", -32768, 5);    /* negative: no precision */
+    r = sprintf(T, "%.*d", -32767 - 1, 5);    /* negative: no precision */
     CHECK(r == 1 && T[0] == '5' && T[1] == 0 && intact(2));
 
     clear();

@@ -38,7 +38,7 @@ static int len(const char *s)
 int main(void)
 {
     TEST(sprintf(buf, "%d|%5d|%-5d|%05d|%+d|% d", 42, 42, 42, 42, 42, 42), "42|   42|42   |00042|+42| 42");
-    TEST(sprintf(buf, "%i %u %o %x %X %#o %#x", -7, 65535, 8, 255, 255, 8, 255), "-7 65535 10 ff FF 010 0xff");
+    TEST(sprintf(buf, "%i %u %o %x %X %#o %#x", -7, 65535u, 8, 255, 255, 8, 255), "-7 65535 10 ff FF 010 0xff");
     TEST(sprintf(buf, "%ld %lu %lx %lo", -2147483647L - 1, 4294967295UL, 3735928559UL, 8UL), "-2147483648 4294967295 deadbeef 10");
     TEST(sprintf(buf, "[%s][%10s][%-10s][%.2s]", "abc", "abc", "abc", "abc"), "[abc][       abc][abc       ][ab]");
     TEST(sprintf(buf, "%c%c%c %5c|%-5c|", 'a', 'b', 'c', 'd', 'e'), "abc     d|e    |");
