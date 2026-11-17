@@ -1,0 +1,736 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+use autodie;
+use File::Basename qw(dirname);
+use POSIX ();
+no warnings 'portable';
+use Getopt::Long qw(GetOptions);
+
+=head1 NAME
+
+gen - write the data files of the <math.h> tests (tests/math/data)
+
+=head1 SYNOPSIS
+
+  tests/math/gen [--out DIR]       write the data files
+  tests/math/gen --verify [N]      check the host oracle against Math::BigFloat
+
+=head1 DESCRIPTION
+
+Each line of a data file is
+
+  FUNCTION ARG [ARG2] RESULT ERRNO
+
+with the arguments and the result as the 16 hex digits of a C<double>'s
+bits, and ERRNO one of C<0>, C<EDOM> and C<ERANGE>, the C<errno> value the
+call must leave (from docs/spec/math.md, never from the host). RESULT is
+the host libm's result (Perl's POSIX functions), except where the spec
+fixes it (the default NaN of a domain error, C<HUGE_VAL>, the sign of a
+zero, an argument returned as it is): the oracle is within a unit of the
+last place, the tests allow 4 for the transcendental functions and none
+for the exact ones. RESULT is C<nan> where any NaN will do.
+
+Three functions have more fields:
+
+  frexp ARG MANTISSA EXPONENT ERRNO      (EXPONENT in decimal)
+  modf  ARG FRACTION INTEGRAL ERRNO
+  ldexp ARG EXPONENT RESULT ERRNO        (EXPONENT in decimal)
+
+The files are generated, then committed: this script needs Perl 5.40 and
+a good libm, and its output depends on neither beyond the oracle's last
+bit, which the tests' bound covers. The random sets come from Perl's own
+generator with a fixed seed (the same on every platform).
+
+Arguments that are within a few units of a point where the spec's error
+class changes (the overflow threshold of C<exp>, the underflow of C<pow>)
+are left out, so that the expected C<errno> never depends on the last bit
+of a result.
+
+=cut
+
+my $out = dirname($0) . '/data';
+my $verify;
+GetOptions('out=s' => \$out, 'verify:i' => \$verify) or die "usage: $0 [--out DIR] [--verify [N]]\n";
+
+# ---- doubles as bits ----
+
+sub bits ($d) { sprintf '%016X', unpack 'Q>', pack 'd>', $d }
+sub num  ($h) { unpack 'd>', pack 'Q>', hex $h }
+
+my $INF  = 9**9**9;
+my $NINF = -$INF;
+my $NAN  = num('7FF8000000000000');
+my $QNAN = '7FF8000000000000';
+my $PI   = 4 * atan2(1, 1);
+my $LN2  = log(2);
+my $DBL_MAX = num('7FEFFFFFFFFFFFFF');
+my $DBL_MIN = num('0010000000000000');
+my $SUB_MIN = num('0000000000000001');
+
+sub isnan ($d) { $d != $d }
+sub isinf ($d) { $d == $INF || $d == $NINF }
+sub isfin ($d) { !isnan($d) && !isinf($d) }
+sub neg0  ($d) { $d == 0 && substr(bits($d), 0, 1) eq '8' }
+sub sgn   ($d) { substr(bits($d), 0, 1) =~ /[89A-F]/ ? -1 : 1 }
+# copysign, by the bits (Perl's unary minus on a zero gives +0)
+sub copysign ($m, $s) {
+  my $b = unpack('Q>', pack 'd>', abs $m) | (sgn($s) < 0 ? 0x8000000000000000 : 0);
+  return unpack 'd>', pack 'Q>', $b;
+}
+sub is_int ($d) { isfin($d) && $d == POSIX::floor($d) }
+sub is_odd ($d) { is_int($d) && abs($d) < 2**53 && POSIX::fmod($d, 2) != 0 }
+
+# The double next to $d in the direction of $dir (+1 or -1), by its bits.
+sub nextd ($d, $dir) {
+  return $dir > 0 ? $SUB_MIN : -$SUB_MIN if $d == 0;
+  my $b = unpack 'Q>', pack 'd>', $d;
+  $b += (($d > 0) == ($dir > 0)) ? 1 : -1;
+  return unpack 'd>', pack 'Q>', $b;
+}
+sub quiet ($h) { sprintf '%016X', hex($h) | 0x0008000000000000 }
+
+# ---- the data files ----
+
+my %rows;       # file => [ lines ]
+my %seen;
+my %sp_count;
+my @errno_rows; # lines also written to errno.dat
+
+# $line: the text; $sp: also in errno.dat
+sub row ($file, $line, $sp = 0) {
+  return if $seen{$file}{$line}++;
+  push $rows{$file}->@*, $line;
+  # the rows of errno.dat: every error, and a third of the other specials
+  if ($sp && ($line !~ / 0$/ || $sp_count{$file}++ % 3 == 0)) {
+    push @errno_rows, $line if !$seen{'errno.dat'}{$line}++;
+  }
+}
+
+sub en ($e) { $e // 0 }
+my %ERRNAME = (0 => '0', D => 'EDOM', R => 'ERANGE');
+
+# Round-trip through the oracle's own printing is avoided: all arguments
+# are built as doubles and written by bits.
+
+# ---- the expected values ----
+
+# A unary function's host value for a non-special finite or infinite
+# argument. Perl's log and sqrt die on bad arguments, so the callers handle
+# those first.
+my %HOST1 = (
+  sin   => sub ($x) { sin $x },
+  cos   => sub ($x) { cos $x },
+  tan   => sub ($x) { POSIX::tan($x) },
+  asin  => sub ($x) { POSIX::asin($x) },
+  acos  => sub ($x) { POSIX::acos($x) },
+  atan  => sub ($x) { atan2($x, 1) },
+  sinh  => sub ($x) { POSIX::sinh($x) },
+  cosh  => sub ($x) { POSIX::cosh($x) },
+  tanh  => sub ($x) { POSIX::tanh($x) },
+  exp   => sub ($x) { exp $x },
+  log   => sub ($x) { log $x },
+  log10 => sub ($x) { POSIX::log10($x) },
+  sqrt  => sub ($x) { sqrt $x },
+  fabs  => sub ($x) { abs $x },
+  floor => sub ($x) { POSIX::floor($x) },
+  ceil  => sub ($x) { POSIX::ceil($x) },
+);
+
+# Thresholds of the error class (see DESCRIPTION).
+my $EXP_OVER  = 709.782712893384;       # exp(x) overflows above it
+my $EXP_UNDER = -745.1332191019412;     # exp(x) is zero below it
+my $SINH_OVER = 710.4758600739439;      # sinh, cosh
+
+sub near ($x, $t, $w) { abs($x - $t) < $w }
+
+# Returns (result bits or 'nan', errno letter) or () to leave the argument out.
+sub expect1 ($fn, $x) {
+  my $xb = bits($x);
+  return (quiet($xb), '0') if isnan($x);
+  if ($fn =~ /^(?:sin|cos|tan)$/) {
+    return ($QNAN, 'D') if isinf($x);
+  } elsif ($fn =~ /^a(?:sin|cos)$/) {
+    return ($QNAN, 'D') if abs($x) > 1;
+  } elsif ($fn =~ /^log(?:10)?$/) {
+    return ($QNAN, 'D') if $x < 0;
+    return (bits($NINF), 'R') if $x == 0;
+  } elsif ($fn eq 'sqrt') {
+    return ($QNAN, 'D') if $x < 0;
+    return ($xb, '0') if $x == 0;
+  } elsif ($fn eq 'exp') {
+    return () if isfin($x) && (near($x, $EXP_OVER, 1e-6) || near($x, $EXP_UNDER, 0.3));
+  } elsif ($fn =~ /^(?:sinh|cosh)$/) {
+    return () if isfin($x) && near(abs($x), $SINH_OVER, 1e-6);
+  }
+  my $r = $HOST1{$fn}->($x);
+  my $e = '0';
+  if ($fn =~ /^(?:exp|sinh|cosh)$/ && isfin($x)) {
+    $e = 'R' if isinf($r);
+    $e = 'R' if $fn eq 'exp' && $r == 0;
+  }
+  # The signs of zeros that the host may get wrong or leave open.
+  if ($fn =~ /^(?:sin|tan|atan|asin|sinh|tanh)$/ && $x == 0) { $r = $x }
+  die "host gave NaN for $fn(" . bits($x) . ")\n" if isnan($r);
+  return (bits($r), $e);
+}
+
+sub emit1 ($file, $fn, $x, $sp = 0) {
+  my ($r, $e) = expect1($fn, $x) or return;
+  row($file, join(' ', $fn, bits($x), $r, $ERRNAME{$e}), $sp);
+}
+
+# Two-argument functions.
+sub expect2 ($fn, $x, $y) {
+  my ($xb, $yb) = (bits($x), bits($y));
+  my $nan = sub () {
+    return ('nan', '0') if isnan($x) && isnan($y);
+    return (quiet(isnan($x) ? $xb : $yb), '0');
+  };
+  if ($fn eq 'atan2') {
+    return $nan->() if isnan($x) || isnan($y);
+    return (bits(atan2($x, $y)), '0');
+  }
+  if ($fn eq 'fmod') {
+    return () if (isnan($x) || isnan($y)) && ($y == 0 || isinf($x));   # open in the spec
+    return $nan->() if isnan($x) || isnan($y);
+    return ($QNAN, 'D') if $y == 0 || isinf($x);
+    return ($xb, '0') if isinf($y) || $x == 0;
+    return (bits(POSIX::fmod($x, $y)), '0');
+  }
+  die "expect2 $fn" unless $fn eq 'pow';
+  return (bits(1), '0') if $y == 0;
+  return (bits(1), '0') if $x == 1;
+  return $nan->() if isnan($x) || isnan($y);
+  return () if isinf($x) && $x < 0 && isfin($y) && !is_int($y);    # open: EDOM or "IEEE, no error"
+  return ($QNAN, 'D') if $x < 0 && isfin($y) && !is_int($y);
+  if ($x == 0 && $y < 0) {
+    return () if isinf($y);    # open in the spec: IEEE divide-by-zero or "no error"
+    my $r = (neg0($x) && is_odd($y)) ? $NINF : $INF;
+    return (bits($r), 'R');
+  }
+  if (isfin($x) && isfin($y) && $x != 0) {
+    # keep away from the overflow and underflow thresholds
+    my $L = $y * log(abs($x)) / $LN2;
+    return () if near($L, 1024, 0.01) || ($L < -1073 && $L > -1077);
+    return () if !is_int($y) && abs($x) == 1;
+  }
+  if ($x == 0) {    # y > 0 here: an exact zero, negative for -0 and an odd y
+    return (bits(copysign(0, (neg0($x) && is_odd($y)) ? -1 : 1)), '0');
+  }
+  my $r = POSIX::pow($x, $y);
+  # the sign of an odd negative power is not in doubt for the host
+  my $e = '0';
+  $e = 'R' if isfin($x) && isfin($y) && $x != 0 && (isinf($r) || $r == 0);
+  die "host gave NaN for pow($xb, $yb)\n" if isnan($r);
+  return (bits($r), $e);
+}
+
+sub emit2 ($file, $fn, $x, $y, $sp = 0) {
+  my ($r, $e) = expect2($fn, $x, $y) or return;
+  row($file, join(' ', $fn, bits($x), bits($y), $r, $ERRNAME{$e}), $sp);
+}
+
+# frexp, modf, ldexp
+sub emit_frexp ($x, $sp = 0) {
+  my ($m, $e);
+  if ($x == 0 || !isfin($x)) {
+    ($m, $e) = (bits($x), 0);
+  } else {
+    my ($hm, $he) = POSIX::frexp($x);
+    ($m, $e) = (bits($hm), $he);
+  }
+  row('frexp.dat', "frexp @{[bits($x)]} $m $e 0", $sp);
+}
+
+sub emit_modf ($x, $sp = 0) {
+  my $xb = bits($x);
+  my $line;
+  if (isnan($x)) {
+    $line = "modf $xb nan nan 0";
+  } elsif (isinf($x)) {
+    $line = "modf $xb @{[bits(copysign(0, $x))]} $xb 0";
+  } else {
+    my ($f, $i) = POSIX::modf($x);
+    $f = copysign($f, $x);
+    $i = copysign($i, $x);
+    $line = "modf $xb @{[bits($f)]} @{[bits($i)]} 0";
+  }
+  row('modf.dat', $line, $sp);
+}
+
+sub emit_ldexp ($x, $e, $sp = 0) {
+  my $xb = bits($x);
+  my ($r, $en) = ($xb, '0');
+  if (isfin($x) && $x != 0) {
+    my $v = POSIX::ldexp($x, $e);
+    $r = bits($v);
+    $en = 'R' if isinf($v) || $v == 0;
+  } elsif (isnan($x)) {
+    $r = $xb;
+  }
+  row('ldexp.dat', "ldexp $xb $e $r $ERRNAME{$en}", $sp);
+}
+
+# ---- argument sets ----
+
+srand(16);
+sub rnd () { rand }    # Perl's drand48: the same on every platform
+
+# a random double of magnitude 2**lo .. 2**hi, log-uniform, with a random sign
+sub rlog ($lo, $hi, $signed = 1) {
+  my $v = 2**($lo + rnd() * ($hi - $lo)) * (1 + rnd() * 0.0);
+  $v *= (1 + rnd());    # fill the mantissa
+  $v = -$v if $signed && rnd() < 0.5;
+  return $v;
+}
+sub rlin ($lo, $hi) { $lo + rnd() * ($hi - $lo) }
+
+my @SCALES = (1e-300, 1e-200, 1e-100, 1e-30, 1e-10, 1e-5, 1e-2, 0.1, 0.5, 1, 2, 3, 10, 100, 1e5, 1e10, 1e100, 1e200, 1e300);
+my @MANT   = (1, 1.5, 3.7);
+my @SUBS   = ($SUB_MIN, num('0000000000000003'), 1e-320, 1e-315, 4.9e-310, num('000FFFFFFFFFFFFF'), $DBL_MIN, nextd($DBL_MIN, 1));
+my $MAXED  = $DBL_MAX;
+
+# the specials every function has
+my @NANS = ('7FF8000000000000', '7FF8000000000123');
+
+sub specials ($fn, $file) {
+  for my $x (0.0, -0.0, $INF, $NINF) { emit1($file, $fn, $x, 1) }
+  for my $h (@NANS) { emit1($file, $fn, num($h), 1) }
+}
+
+# --- sin cos tan ---
+for my $fn (qw(sin cos tan)) {
+  my $f = "$fn.dat";
+  specials($fn, $f);
+  emit1($f, $fn, $_, 1) for 1, -1, 0.5, -0.5, 2, 3, 100, 1e5;
+  for my $s (@SCALES, 1e15, 1e16, 1e22) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) if $m == 1.5 } }
+  emit1($f, $fn, $_) for @SUBS;
+  emit1($f, $fn, -$_) for @SUBS[0, 4];
+  # multiples of pi/2 and the doubles beside them
+  for my $k (1 .. 24, 100, 1000, 12345) {
+    my $x = $k * $PI / 2;
+    emit1($f, $fn, $x);
+    emit1($f, $fn, nextd($x, 1));
+    emit1($f, $fn, nextd($x, -1));
+    emit1($f, $fn, -$x) if $k % 3 == 0;
+  }
+  # pi/4 multiples, and ln 2 for luck
+  emit1($f, $fn, $_) for $PI / 4, 3 * $PI / 4, $PI, 2 * $PI, $LN2, 2**-26, 2**-27, 2**-28;
+  # large arguments: 1e22 and 2^53 and beside them, powers of two, the largest
+  for my $x (1e22, 2**53, 2**53 + 2, 2**53 - 1, 2**60, 2**64, 2**100, 2**200, 2**500, 2**900, 2**1000, 2**1023, 1e23, 1e30, 1e100, 1e200, 1e300, 1.5e300, $MAXED) {
+    emit1($f, $fn, $x, $x == 1e22 || $x == $MAXED ? 1 : 0);
+    emit1($f, $fn, -$x) if $x > 1e22;
+    emit1($f, $fn, nextd($x, -1)) if $x == 1e22 || $x == 2**53;
+    emit1($f, $fn, nextd($x, 1)) if $x == 1e22;
+  }
+  emit1($f, $fn, rlin(-10, 10)) for 1 .. 12;
+  emit1($f, $fn, rlog(-30, 60)) for 1 .. 30;
+  emit1($f, $fn, rlog(60, 1023)) for 1 .. 10;
+}
+
+# --- asin acos ---
+for my $fn (qw(asin acos)) {
+  my $f = "$fn.dat";
+  specials($fn, $f);
+  emit1($f, $fn, $_, 1) for 1, -1, 1.5, -1.5, 2, -2, 1e300, -1e300, nextd(1, 1), nextd(-1, -1), $DBL_MAX, 1e-300;
+  for my $s (grep { $_ <= 1 } @SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m) if $s * $m <= 1; emit1($f, $fn, -$s * $m) if $m == 1.5 && $s * $m <= 1 } }
+  emit1($f, $fn, $_) for @SUBS;
+  emit1($f, $fn, $_) for 0.5, -0.5, sqrt(0.5), -sqrt(0.5), 0.25, 0.75, 0.9, 0.99, 0.999999, 1 - 2**-53, -(1 - 2**-53), nextd(1, -1), nextd(0.5, 1), nextd(0.5, -1), sqrt(3) / 2, 2**-27, 2**-26;
+  for my $k (1 .. 10) { emit1($f, $fn, 1 - $k * 1e-8); emit1($f, $fn, -(1 - 2**-$k)) }
+  emit1($f, $fn, rlin(-1, 1)) for 1 .. 30;
+  emit1($f, $fn, rlog(-60, -1)) for 1 .. 12;
+  emit1($f, $fn, 1 - 2**rlin(-52, -1)) for 1 .. 12;
+}
+
+# --- atan ---
+{
+  my ($fn, $f) = ('atan', 'atan.dat');
+  specials($fn, $f);
+  for my $s (@SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) if $m == 1.5 } }
+  emit1($f, $fn, $_) for @SUBS, $DBL_MAX, -$DBL_MAX, 1, -1, 2**-27, 2**-26;
+  emit1($f, $fn, $_) for 0.5, 2, 3, 1 / sqrt(3), sqrt(3), 2 - sqrt(3), 2 + sqrt(3), 0.4375, 0.4376, 2.4375, 2.4376, 7 / 16, 11 / 16, 19 / 16, 39 / 16;
+  emit1($f, $fn, nextd(1, 1)), emit1($f, $fn, nextd(1, -1));
+  emit1($f, $fn, 2**$_) for 20, 40, 53, 54, 60, 100, 500, 1000, 1023;
+  emit1($f, $fn, rlin(-4, 4)) for 1 .. 30;
+  emit1($f, $fn, rlog(-60, 100)) for 1 .. 30;
+}
+
+# --- sinh cosh ---
+for my $fn (qw(sinh cosh)) {
+  my $f = "$fn.dat";
+  specials($fn, $f);
+  for my $x (710, -710, 711, -711, 1000, -1000, 1e300, -1e300, $DBL_MAX, -$DBL_MAX, 709.78, -709.78, 710.47, -710.47, 710.4, 709, 700, 100) { emit1($f, $fn, $x, $x == 1000 || $x == -1000 || $x == 710 ? 1 : 0) }
+  for my $s (grep { $_ <= 100 } @SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) if $m == 1.5 } }
+  emit1($f, $fn, $_) for @SUBS, 1, -1, 0.5, 2, 3, 20, 22, 30, 36, 40, 2**-27, 2**-26, 2**-28, 0.1, 0.2;
+  for my $k (1 .. 20, 100, 1000) { emit1($f, $fn, $k * $LN2); emit1($f, $fn, -$k * $LN2) if $k % 2 }
+  for my $x (354, 355, 709.7, 710.1) { emit1($f, $fn, $x); emit1($f, $fn, -$x) }
+  emit1($f, $fn, rlin(-5, 5)) for 1 .. 25;
+  emit1($f, $fn, rlin(-710, 710)) for 1 .. 25;
+  emit1($f, $fn, rlog(-60, 0)) for 1 .. 10;
+}
+
+# --- tanh ---
+{
+  my ($fn, $f) = ('tanh', 'tanh.dat');
+  specials($fn, $f);
+  for my $s (@SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) if $m == 1.5 } }
+  emit1($f, $fn, $_) for @SUBS, $DBL_MAX, 1, -1, 0.5, 2, 3, 10, 18, 19, 20, 22, 30, 40, 2**-27, 2**-26, 2**-28, 0.1, 0.549306, 0.5493061443340548, 1000;
+  for my $k (1 .. 20) { emit1($f, $fn, $k * $LN2 / 2) }
+  emit1($f, $fn, rlin(-3, 3)) for 1 .. 30;
+  emit1($f, $fn, rlin(-20, 20)) for 1 .. 15;
+  emit1($f, $fn, rlog(-60, 0)) for 1 .. 12;
+}
+
+# --- exp ---
+{
+  my ($fn, $f) = ('exp', 'exp.dat');
+  specials($fn, $f);
+  for my $x (709.78, 709, 710, 711, 1000, 1e300, $DBL_MAX, -745, -746, -750, -1000, -1e300, -$DBL_MAX, -708, -709, -740, -744, 700, -700, 1, -1, 0.5, 2, 10, 100, -100) {
+    emit1($f, $fn, $x, abs($x) >= 710 ? 1 : 0);
+  }
+  for my $s (grep { $_ <= 100 } @SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) if $m != 1 } }
+  emit1($f, $fn, $_) for @SUBS, -$SUB_MIN, 2**-52, 2**-53, 2**-54, -(2**-54), 2**-30, 1e-17, -1e-17;
+  for my $k (-1074 .. -1070, -1022, -1000, -500, -100, -10, -2, -1, 1, 2, 3, 4, 5, 10, 100, 500, 1000, 1023) {
+    my $x = $k * $LN2;
+    emit1($f, $fn, $x); emit1($f, $fn, nextd($x, 1)); emit1($f, $fn, nextd($x, -1));
+  }
+  for my $k (0.5, 1.5, 2.5, 100.5, 1000.5) { emit1($f, $fn, $k * $LN2); emit1($f, $fn, -$k * $LN2) }
+  emit1($f, $fn, rlin(-1, 1)) for 1 .. 25;
+  emit1($f, $fn, rlin(-745, 709.7)) for 1 .. 30;
+  emit1($f, $fn, rlin(-50, 50)) for 1 .. 20;
+}
+
+# --- log log10 ---
+for my $fn (qw(log log10)) {
+  my $f = "$fn.dat";
+  specials($fn, $f);
+  emit1($f, $fn, $_, 1) for -1, -1e-300, -$SUB_MIN, -$DBL_MAX, -0.5, 1, $SUB_MIN, $DBL_MAX, 2, 10, 0.1;
+  for my $s (@SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m) } }
+  emit1($f, $fn, $_) for @SUBS, $DBL_MAX, nextd($DBL_MAX, -1), 2, 0.5, 4, 3, 5, 7, 9, 10, 100, 1000, exp(1), exp(-1), sqrt(2), sqrt(0.5), 1.5, 0.75, 0.7, 0.71, 1.4, 1.42;
+  # next to 1, and 1 +- 2^-k
+  for my $k (1 .. 12, 20, 30, 40, 50, 52) { emit1($f, $fn, 1 + 2**-$k); emit1($f, $fn, 1 - 2**-$k) if $k > 1 }
+  emit1($f, $fn, nextd(1, 1)); emit1($f, $fn, nextd(1, -1));
+  emit1($f, $fn, 1 + $_ * 1e-3) for -5 .. 5;
+  # powers of two and e, and next to them
+  for my $k (-1074, -1073, -1022, -1000, -500, -100, -64, -10, -3, -1, 1, 3, 10, 52, 53, 64, 100, 500, 1000, 1023) {
+    emit1($f, $fn, 2**$k);
+    emit1($f, $fn, nextd(2**$k, 1)) if $k % 2; emit1($f, $fn, nextd(2**$k, -1)) if $k % 3 == 0;
+  }
+  emit1($f, $fn, exp($_)) for -700, -100, -10, -1, 1, 2, 10, 100, 700;
+  emit1($f, $fn, rlin(0.5, 2)) for 1 .. 25;
+  emit1($f, $fn, rlog(-1074, 1023, 0)) for 1 .. 30;
+  emit1($f, $fn, rlin(0, 100)) for 1 .. 10;
+}
+
+# --- sqrt ---
+{
+  my ($fn, $f) = ('sqrt', 'sqrt.dat');
+  specials($fn, $f);
+  emit1($f, $fn, $_, 1) for -1, -1e-300, -$SUB_MIN, -$DBL_MAX, -0.25, -4;
+  for my $s (@SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m) } }
+  emit1($f, $fn, $_) for @SUBS, $DBL_MAX, nextd($DBL_MAX, -1), 1, nextd(1, 1), nextd(1, -1), 2, 3, 0.5, 4, 9, 16, 0.25, 1e22, 144, 625, 2**52, 2**53, 2**53 + 2;
+  emit1($f, $fn, $_ * $_) for 1 .. 20, 1000, 12345, 2**26 + 1, 2**26 - 1, 0.5, 1.5, 3, 1e10, 1e100 / 2**100;
+  emit1($f, $fn, 4**$_) for -540, -537, -500, -100, -10, 10, 100, 500, 511;
+  emit1($f, $fn, 2**$_) for -1074, -1073, -1060, -1022, -1021, -1000, -3, -1, 1, 3, 1023;
+  emit1($f, $fn, rlin(0.25, 4)) for 1 .. 40;
+  emit1($f, $fn, rlog(-1074, 1023, 0)) for 1 .. 40;
+}
+
+# --- fabs floor ceil ---
+for my $fn (qw(fabs floor ceil)) {
+  my $f = "$fn.dat";
+  specials($fn, $f);
+  for my $s (@SCALES) { for my $m (@MANT) { emit1($f, $fn, $s * $m); emit1($f, $fn, -$s * $m) } }
+  for my $x (@SUBS, $DBL_MAX, 0.5, 1.5, 2.5, -0.5, -1.5, -2.5, 0.25, 0.75, 0.9999999999999999, -0.9999999999999999, 1.0000000000000002, -1.0000000000000002, 1, -1, 2, 3, -3, 42, 1e15, 2**52, 2**52 + 1, 2**52 - 0.5, 2**52 + 0.5, 2**53, 2**53 + 2, 2**53 - 1, 4503599627370495.5, 4503599627370496.5 - 1, 1e16, 1e22, 1e300, 0.1, -0.1, 1e-300, 123456.789, -123456.789, 65535.5, 65536.5, 32767.5, -32768.5, 2147483647.5, 2147483648.5, -2147483648.5, 4294967295.5, 4294967296.5, 1e10 + 0.5) {
+    emit1($f, $fn, $x); emit1($f, $fn, -$x) if $x;
+  }
+  for my $k (-60 .. 60) { emit1($f, $fn, 2**$k * 1.5) if $k % 5 == 0 }
+  emit1($f, $fn, rlin(-100, 100)) for 1 .. 40;
+  emit1($f, $fn, rlog(-10, 70)) for 1 .. 30;
+  emit1($f, $fn, rlog(-1074, 1023)) for 1 .. 20;
+}
+
+# --- atan2 ---
+{
+  my ($fn, $f) = ('atan2', 'atan2.dat');
+  my @v = (0.0, -0.0, 1, -1, 2, 0.5, 1e-300, -1e-300, 1e300, -1e300, $SUB_MIN, $INF, $NINF);
+  # every IEEE special, and the zeros and infinities with every sign
+  for my $y (@v) { for my $x (@v) { emit2($f, $fn, $y, $x, 1) if rnd() < 0.6 || abs($y) == 0 || isinf($y) } }
+  for my $y (0.0, 1, $INF) { emit2($f, $fn, $y, num($NANS[0]), 1); emit2($f, $fn, num($NANS[0]), $y, 1) }
+  emit2($f, $fn, $NAN, $NAN, 1);
+  for my $y (@SCALES) { for my $x (@SCALES) { next unless rnd() < 0.2; emit2($f, $fn, $y, $x); emit2($f, $fn, -$y, $x) if rnd() < 0.5; emit2($f, $fn, $y, -$x) if rnd() < 0.5; emit2($f, $fn, -$y, -$x) if rnd() < 0.5 } }
+  for my $a (1, 2, 3, 0.1, 10) { for my $b (1, 2, 3, 0.1, 10) { emit2($f, $fn, $a, $b); emit2($f, $fn, -$a, $b); emit2($f, $fn, $a, -$b); emit2($f, $fn, -$a, -$b) } }
+  # across the breakpoints: ratios of tan(k pi/8) and 1, and the axes
+  for my $k (1 .. 7) { my $t = POSIX::tan($k * $PI / 8); emit2($f, $fn, $t, 1); emit2($f, $fn, -$t, -1); emit2($f, $fn, 1, $t) }
+  emit2($f, $fn, 1, 1); emit2($f, $fn, nextd(1, 1), 1); emit2($f, $fn, nextd(1, -1), 1);
+  emit2($f, $fn, $_, 1e300) for 1e-300, 1e-10, 1, 1e300; # tiny ratios
+  emit2($f, $fn, 1e-300, 1e300);                          # a ratio below the subnormals
+  emit2($f, $fn, 1e300, 1e-300); emit2($f, $fn, $DBL_MAX, $SUB_MIN); emit2($f, $fn, $SUB_MIN, $DBL_MAX);
+  emit2($f, $fn, $SUB_MIN, 1); emit2($f, $fn, 1, $SUB_MIN); emit2($f, $fn, $DBL_MIN, 1);
+  emit2($f, $fn, 1e-310, 1e-310); emit2($f, $fn, 3e-310, 1e-310);
+  emit2($f, $fn, rlin(-5, 5), rlin(-5, 5)) for 1 .. 40;
+  emit2($f, $fn, rlog(-1000, 1000), rlog(-1000, 1000)) for 1 .. 40;
+}
+
+# --- fmod ---
+{
+  my ($fn, $f) = ('fmod', 'fmod.dat');
+  my @v = (0.0, -0.0, 1, -1, 5.5, 1e300, $SUB_MIN, $INF, $NINF, $DBL_MAX);
+  for my $x (@v) { for my $y (@v) { emit2($f, $fn, $x, $y, 1) } }
+  for my $x (1, 0, $INF) { emit2($f, $fn, $x, num($NANS[0]), $x != $INF); emit2($f, $fn, num($NANS[0]), $x, $x == 1) }
+  for my $x (5, -5, 5.5, -5.5, 0.1, 1e300, -1e300, $DBL_MAX, 1e22, 2**53, 3, 1e-300, $SUB_MIN, 1e-310, 1) {
+    for my $y (3, -3, 2, 0.5, 0.1, 1e-300, 1e300, 7, 1e10, 2**-1074, 0.3, 1e22, 1e-310) { emit2($f, $fn, $x, $y) if rnd() < 0.7 }
+  }
+  emit2($f, $fn, $_, 3) for 6, 7, 8, 9, -7, 2**60, 2**100, 2**1000, 1e300, $DBL_MAX;
+  emit2($f, $fn, 1e300, $_) for 3, 1e-5, 7e100, 2**500, 1.0000000000000002, 1e-300, 4.9e-324;
+  emit2($f, $fn, $DBL_MAX, $_) for 1e-300, $SUB_MIN, 3, $DBL_MAX / 2, nextd($DBL_MAX, -1);
+  emit2($f, $fn, 1, 3); emit2($f, $fn, 3, 3); emit2($f, $fn, -3, 3); emit2($f, $fn, nextd(3, 1), 3); emit2($f, $fn, nextd(3, -1), 3);
+  emit2($f, $fn, 2**52 + 1, 2); emit2($f, $fn, 0.7, 0.1); emit2($f, $fn, 1, 0.1); emit2($f, $fn, 10, 0.1); emit2($f, $fn, 1e-5, 3e-6);
+  emit2($f, $fn, rlin(-100, 100), rlin(0.1, 10)) for 1 .. 40;
+  emit2($f, $fn, rlog(-1074, 1023), rlog(-1074, 1023)) for 1 .. 40;
+}
+
+# --- pow ---
+{
+  my ($fn, $f) = ('pow', 'pow.dat');
+  my @sp = (0.0, -0.0, 1, -1, 0.5, -0.5, 2, -2, 3, $INF, $NINF);
+  my @yp = (0.0, -0.0, 1, -1, 0.5, -0.5, 2, -2, 3, -3, 1.5, -1.5, 1e300, -1e300, $INF, $NINF, 2**53, 2**53 + 2, 1e22);
+  # every IEEE / Annex F special
+  for my $x (@sp) { for my $y (@yp) { emit2($f, $fn, $x, $y, 1) } }
+  for my $y (@yp) { emit2($f, $fn, num($NANS[0]), $y, 1); emit2($f, $fn, 2, $y) if 0 }
+  for my $x (@sp, 0.3, -0.3, 1.5) { emit2($f, $fn, $x, num($NANS[0]), 1) }
+  emit2($f, $fn, $NAN, $NAN, 1);
+  emit2($f, $fn, $_, 0.0, 1) for $NAN, $INF, -$INF, 0, 7;
+  emit2($f, $fn, 1, $_, 1) for $NAN, $INF, -$INF, 2, 1e300;
+  emit2($f, $fn, $_, $INF, 1) for 0.5, -0.5, 2, -2, 1, -1, nextd(1, 1), nextd(1, -1);
+  emit2($f, $fn, $_, $NINF, 1) for 0.5, -0.5, 2, -2, 1, -1, nextd(1, 1), nextd(1, -1);
+  emit2($f, $fn, $_, 3, 1) for $INF, $NINF; emit2($f, $fn, $_, 2, 1) for $INF, $NINF; emit2($f, $fn, $_, -3, 1) for $INF, $NINF; emit2($f, $fn, $_, -2, 1) for $INF, $NINF;
+  # domain errors, and range errors at the ends
+  emit2($f, $fn, -2, 0.5, 1); emit2($f, $fn, -8, 1 / 3, 1); emit2($f, $fn, -1e-300, 2.5, 1); emit2($f, $fn, $NINF, 0.5, 1); emit2($f, $fn, -0.5, 0.5, 1);
+  emit2($f, $fn, 10, 400, 1); emit2($f, $fn, 10, -400, 1); emit2($f, $fn, -10, 401, 1); emit2($f, $fn, -10, 400, 1); emit2($f, $fn, -10, -401, 1); emit2($f, $fn, 2, 1024, 1); emit2($f, $fn, 2, -1080, 1);
+  emit2($f, $fn, 1e300, 2, 1); emit2($f, $fn, 1e-300, 2, 1); emit2($f, $fn, 1e-300, -2, 1); emit2($f, $fn, $DBL_MAX, 2); emit2($f, $fn, $SUB_MIN, 2); emit2($f, $fn, $SUB_MIN, 0.5); emit2($f, $fn, $SUB_MIN, -1);
+  emit2($f, $fn, 0, -1, 1); emit2($f, $fn, -0.0, -1, 1); emit2($f, $fn, -0.0, -2, 1); emit2($f, $fn, 0, -2.5, 1); emit2($f, $fn, -0.0, -2.5, 1); emit2($f, $fn, -0.0, -3, 1); emit2($f, $fn, -0.0, -1e300, 1); emit2($f, $fn, 0, -1e300, 1);
+  emit2($f, $fn, 0, 2, 1); emit2($f, $fn, -0.0, 3, 1); emit2($f, $fn, -0.0, 2, 1); emit2($f, $fn, -0.0, 0.5, 1); emit2($f, $fn, 0, 1e300, 1);
+  # odd and even integer powers of negative numbers
+  for my $x (-1, -2, -3, -0.5, -10, -1.5) { for my $y (1, 2, 3, 4, 5, 10, 11, -1, -2, -3, 31, 100, 101) { emit2($f, $fn, $x, $y) } }
+  emit2($f, $fn, -2, 1023); emit2($f, $fn, -2, 1024); emit2($f, $fn, -2, -1074); emit2($f, $fn, -2, -1075); emit2($f, $fn, -1, 2**53); emit2($f, $fn, -1, 2**53 + 2); emit2($f, $fn, -1.5, 1e300); emit2($f, $fn, -0.5, 1e300);
+  # small integer powers and roots
+  for my $x (2, 3, 5, 7, 10, 1.5, 0.5, 0.1, 12, 100) { for my $y (-3, -2, -1, 0.5, 1 / 3, 2, 3, 4, 5, 7, 10) { emit2($f, $fn, $x, $y) } }
+  for my $x (1.0000001, 0.9999999, 1.0000000000000002, nextd(1, -1)) { for my $y (1e5, -1e5, 1e10, -1e10, 1e15, 3, 0.5, 1e300, 2**60) { emit2($f, $fn, $x, $y) } }
+  emit2($f, $fn, 2**$_, 0.5) for -1074, -1073, -1000, -2, 2, 1000, 1023;
+  # sweeps: x over scales, y over a set
+  my @ys = (0.5, 1 / 3, 1.5, 2.5, -0.5, -1.5, -2, 7, 0.1, 10.5, -10.5, 100.25, -37, 1e-5, 20, 1.0000000001, 3.7);
+  for my $s (@SCALES) { for my $m (@MANT) { my $x = $s * $m; for my $y (@ys) { emit2($f, $fn, $x, $y) if rnd() < 0.12 } } }
+  emit2($f, $fn, $_, 2.5) for @SUBS;
+  emit2($f, $fn, $_, 0.5) for @SUBS;
+  emit2($f, $fn, $_, 1.0000000001) for $DBL_MAX, $DBL_MIN;
+  emit2($f, $fn, $_, -0.9999999) for $DBL_MAX, 1e100;
+  emit2($f, $fn, 1 + 2**-30, 2**30); emit2($f, $fn, 1 - 2**-30, -(2**30)); emit2($f, $fn, 1 + 2**-52, 2**52); emit2($f, $fn, 1 + 2**-52, 2**60);
+  emit2($f, $fn, exp(1), $_) for 1, 10, 100, 700, -700, 709, -745;
+  emit2($f, $fn, rlin(0.1, 10), rlin(-10, 10)) for 1 .. 40;
+  emit2($f, $fn, rlog(-100, 100, 0), rlin(-20, 20)) for 1 .. 40;
+  emit2($f, $fn, rlin(0.5, 2), rlin(-2000, 2000)) for 1 .. 20;
+  emit2($f, $fn, -rlin(0.5, 5), POSIX::floor(rlin(-30, 30))) for 1 .. 12;
+}
+
+# --- frexp modf ldexp ---
+{
+  my @x = (0.0, -0.0, $INF, $NINF);
+  emit_frexp($_, 1) for @x, num($NANS[0]), num($NANS[1]);
+  emit_modf($_, 1) for @x, num($NANS[0]);
+  emit_ldexp($_, $_ eq '0' ? 0 : 7, 1) for @x, num($NANS[0]);
+  emit_ldexp($_, $_ == 0 ? -5000 : 0, 1) for 0.0, -0.0;
+  emit_ldexp($_, 5000, 1) for $INF, $NINF;
+  my @s = (1, -1, 0.5, 0.75, 1.5, 3, 10, 0.1, 123456.789, 1e-300, 1e300, $DBL_MAX, -$DBL_MAX, $DBL_MIN, nextd($DBL_MIN, -1), $SUB_MIN, num('000FFFFFFFFFFFFF'), 1e-310, -1e-310, 2**52, 2**53, 2**-52, nextd(1, 1), nextd(1, -1), 0.9999999999999999, 2.5, -2.5, 7.0, 0.3, 4503599627370495.5);
+  for my $x (@s) { emit_frexp($x); emit_frexp(-$x) if $x == 1.5 || $x < 0 && 0 }
+  emit_frexp(2**$_) for -1074, -1073, -1023, -1022, -1021, -2, -1, 0, 1, 2, 52, 1000, 1023;
+  emit_frexp(-(2**$_)) for -1074, 0, 1023;
+  emit_frexp(rlog(-1074, 1023)) for 1 .. 25;
+  emit_modf($_) for @s, map { -$_ } @s;
+  emit_modf($_) for 2.5, -2.5, 0.5, -0.5, 1e15 + 0.5, 2**52 + 1, 2**52 - 0.5, 1e22, 3.0, -3.0, 0.9999999999999999, -0.9999999999999999, 4294967296.5, -4294967296.5, 65536.25, -32768.75;
+  emit_modf(rlin(-100, 100)) for 1 .. 20;
+  emit_modf(rlog(-30, 60)) for 1 .. 20;
+  for my $x (1, -1, 0.5, 1.5, 3, 0.1, -0.1, 1e300, 1e-300, $SUB_MIN, num('000FFFFFFFFFFFFF'), $DBL_MIN, $DBL_MAX, 1e-310, 0.3, 123.456, 2**52 + 1, nextd(1, 1)) {
+    for my $e (0, 1, -1, 2, 10, -10, 52, -52, 100, -100, 1000, -1000, 1023, -1023, 1024, -1024, 1074, -1074, 1075, -1075, 1076, -1076, 2000, -2000, 2100, -2200, 5000, -5000, 32767, -32768) {
+      emit_ldexp($x, $e) if rnd() < 0.5 || abs($e) >= 1000;
+    }
+  }
+  # the subnormal range's rounding to nearest even: odd and even neighbours,
+  # and the exact halves
+  for my $m (1, 2, 3, 5, 6, 7, 9, 0.5, 0.75, 1.5, 2.5, 3.5, 1.25, 1.75, 0.625, 1.0000000000000002, 1.9999999999999998, 0.9999999999999999, 4503599627370497, 4503599627370495) {
+    for my $e (-1074, -1075, -1076, -1077, -1078, -1079, -1080, -1100) { emit_ldexp($m, $e); emit_ldexp(-$m, $e) if $m == 1.5 || $m == 3 || $m == 0.5 }
+  }
+  for my $e (-1021 .. -1019, -1023 .. -1020, 970 .. 972) { emit_ldexp(1.0000000000000002, $e); emit_ldexp(num('000FFFFFFFFFFFFF'), $e - 1000) }
+  emit_ldexp(num('0000000000000001'), $_) for 0, 1, 52, 53, 1074, 1075, 2000, -1, -2;
+  emit_ldexp(1.5, 1023); emit_ldexp(1.9999999999999998, 1023); emit_ldexp(1.9999999999999998, 1024); emit_ldexp(1, 1024); emit_ldexp(1, 1023); emit_ldexp(-1, 1024); emit_ldexp(0.5, 1024); emit_ldexp(0.5, 1025);
+  emit_ldexp(1e308, 1); emit_ldexp(1e308, -1); emit_ldexp(-1e308, 1);
+  emit_ldexp(rlog(-100, 100), int(rlin(-300, 300))) for 1 .. 20;
+  emit_ldexp(rlog(-1074, 1023), int(rlin(-2200, 2200))) for 1 .. 20;
+}
+
+# ---- exact.dat: results the spec says are exact, bit for bit ----
+{
+  my $f = 'exact.dat';
+  # f(0) identities, with the sign of the argument for the odd functions
+  for my $fn (qw(exp cos cosh sin tan atan asin sinh tanh)) { emit1($f, $fn, $_) for 0.0, -0.0 }
+  emit1($f, 'log', 1.0); emit1($f, 'acos', 1.0); emit1($f, 'log10', 1.0); emit1($f, 'sqrt', 1.0);
+  emit1($f, 'sqrt', $_) for 0.0, -0.0, 4, 9, 0.25, 144, 2**100, 2**-100, 2**1022, 4**-537;
+  emit1($f, 'fabs', $_) for 0.0, -0.0, -1, 2.5, -$INF;
+  emit1($f, 'floor', $_) for -0.0, 0.0, -0.5, 0.5, -1.5, 3, -3, 2**52, -(2**52), 2**53 + 2, 1e300, -1e300;
+  emit1($f, 'ceil', $_) for -0.0, 0.0, -0.5, 0.5, -1.5, 3, -3, 2**52, -(2**52), -0.9999999999999999, 0.0000001, 1e300;
+  emit2($f, 'fmod', 5.5, 2); emit2($f, 'fmod', -5.5, 2); emit2($f, 'fmod', 5.5, -2); emit2($f, 'fmod', 6, 3); emit2($f, 'fmod', -6, 3); emit2($f, 'fmod', 0.0, 3); emit2($f, 'fmod', -0.0, 3);
+  emit2($f, 'fmod', 1e300, 3); emit2($f, 'fmod', 1e300, 1e-300); emit2($f, 'fmod', 1.5, $INF); emit2($f, 'fmod', -1.5, $NINF); emit2($f, 'fmod', 7, 1e300);
+  # pow(x, 0) and pow(x, 1)
+  for my $x (0.0, -0.0, 1, -1, 2, 0.1, -0.1, 1e300, 1e-300, $SUB_MIN, -$SUB_MIN, $DBL_MAX, -$DBL_MAX, $INF, $NINF, num($NANS[0]), 3.14159, -2.5) { emit2($f, 'pow', $x, 0.0); emit2($f, 'pow', $x, -0.0); emit2($f, 'pow', $x, 1) if !isnan($x) }
+  emit2($f, 'pow', 1, num($NANS[0]));
+  # integer powers whose exact result is a double: every base -12 .. 40 up to
+  # its largest exact power (the odd part's power at most 2^53, the whole at
+  # most DBL_MAX), the expected value computed in integers
+  require Math::BigInt;
+  my $maxd = Math::BigInt->new(2)->bpow(1024)->bsub(Math::BigInt->new(2)->bpow(971));
+  for my $x (-12 .. 40) {
+    next if $x == 0;
+    my $o = abs $x;
+    $o /= 2 while $o % 2 == 0;
+    for my $n (0 .. 1023) {
+      my $big = Math::BigInt->new(abs $x)->bpow($n);
+      last if $big > $maxd;
+      last if Math::BigInt->new($o)->bpow($n) > Math::BigInt->new(2)->bpow(53);
+      next unless $n < 8 || grep { $n == $_ } 10, 15, 22, 31, 47, 64, 100, 200, 500, 1000;
+      next if abs($x) == 1 && $n > 3;
+      my $v = 0 + "$big";
+      $v = -$v if $x < 0 && $n % 2;
+      row($f, join(' ', 'pow', bits($x), bits($n), bits($v), '0'));
+    }
+  }
+  # powers of ten
+  emit2($f, 'pow', 10, $_) for 0 .. 22;
+  emit2($f, 'pow', -10, $_) for 0 .. 22;
+  emit2($f, 'pow', 5, $_) for 0 .. 22;
+  emit2($f, 'pow', 3, $_) for 0 .. 33;
+  emit2($f, 'pow', 7, $_) for 0 .. 18;
+  emit2($f, 'pow', 0, $_) for 1, 2, 3, 100;
+  emit2($f, 'pow', -0.0, $_) for 1, 2, 3, 100;
+}
+
+# pow(2, n) for every n whose result is finite and not below 2^-1074; and log10(10^n)
+for my $n (-1074 .. 1023) { my $pf = $n < 0 ? 'p2n.dat' : 'p2p.dat'; row($pf, "pow @{[bits(2)]} @{[bits($n)]} @{[bits(2**$n)]} 0") }
+for my $n (-1074, -1073, -1022, -1021, -1, 0, 1, 52, 53, 1023) { row('p2p.dat', "pow @{[bits(-2)]} @{[bits($n)]} @{[bits((-2)**$n)]} 0") if $n > -1074 && $n < 1024 }
+for my $n (-307 .. 308) {
+  my $x = "1e$n" + 0;    # Perl's literal parse is correctly rounded
+  row('l10.dat', "log10 @{[bits($x)]} @{[bits($n)]} 0");
+}
+# the rows of l10.dat are exact: the double nearest 10^n has log10 exactly n
+# (the check in the exact program is bit for bit, as exact.dat's)
+
+# errno.dat
+$rows{'errno.dat'} = \@errno_rows;
+
+# ---- write ----
+
+if (defined $verify) {
+  verify_oracle($verify || 20);
+  exit;
+}
+
+mkdir $out unless -d $out;
+for my $file (sort keys %rows) {
+  open my $fh, '>', "$out/$file";
+  print $fh "$_\n" for $rows{$file}->@*;
+  close $fh;
+  say sprintf '%-10s %5d', $file, scalar $rows{$file}->@*;
+}
+
+# ---- --verify: the oracle against an independent computation ----
+#
+# Math::BigFloat at 60 digits computes sin cos tan atan exp log sqrt and pow
+# (and from them the others) for a sample of the rows with a moderate
+# argument, and the host's result is compared with it in units of the last
+# place. Prints the worst error found per function and every row beyond 1.5.
+
+sub verify_oracle ($every) {
+  require Math::BigFloat;
+  Math::BigFloat->accuracy(45);
+  $| = 1;
+  my $bf = sub ($d) { Math::BigFloat->new(sprintf '%.25e', $d) };
+  my $exact = sub ($d) {    # the exact value of a double as a BigFloat
+    my ($m, $e) = POSIX::frexp($d);
+    my $mi = Math::BigInt->new(sprintf '%.0f', POSIX::ldexp($m, 53));
+    Math::BigFloat->new($mi)->bmul(Math::BigFloat->new(2)->bpow($e - 53));
+  };
+  my $ln10 = Math::BigFloat->new(10)->blog;
+  my $pi   = Math::BigFloat->bpi(45);
+  my %f = (
+    sin   => sub ($x) { $x->copy->bsin },
+    cos   => sub ($x) { $x->copy->bcos },
+    tan   => sub ($x) { $x->copy->bsin->bdiv($x->copy->bcos) },
+    atan  => sub ($x) { $x->copy->batan },
+    exp   => sub ($x) { $x->copy->bexp },
+    log   => sub ($x) { $x->copy->blog },
+    log10 => sub ($x) { $x->copy->blog->bdiv($ln10) },
+    sqrt  => sub ($x) { $x->copy->bsqrt },
+    sinh  => sub ($x) { my $e = $x->copy->bexp; my $i = scalar Math::BigFloat->new(1)->bdiv($e); scalar $e->bsub($i)->bdiv(2) },
+    cosh  => sub ($x) { my $e = $x->copy->bexp; my $i = scalar Math::BigFloat->new(1)->bdiv($e); scalar $e->badd($i)->bdiv(2) },
+    tanh  => sub ($x) { my $e = $x->copy->bmul(2)->bexp; my $d = $e->copy->badd(1); scalar $e->bsub(1)->bdiv($d) },
+  );
+  # asin and acos from atan2 are awkward in Math::BigFloat: use the identity
+  # asin x = atan(x / sqrt(1 - x^2)), acos x = pi/2 - asin x
+  $f{asin} = sub ($x) { $x->copy->bdiv(Math::BigFloat->new(1)->bsub($x->copy->bmul($x))->bsqrt)->batan };
+  $f{acos} = sub ($x) { $pi->copy->bdiv(2)->bsub($f{asin}->($x)) };
+  my %worst;
+  my $n = 0;
+  for my $file (grep { $_ ne 'errno.dat' && $_ !~ /^p2/ } sort keys %rows) {
+    for my $line ($rows{$file}->@*) {
+      my ($fn, $a, $r) = split ' ', $line;
+      next unless $f{$fn} && $r ne 'nan';
+      next if ++$n % $every;
+      my ($x, $want) = (num($a), num($r));
+      next unless isfin($x) && isfin($want) && $want != 0;
+      next if abs($x) > 1e6 && $fn =~ /^(?:sin|cos|tan)$/;
+      next if abs($x) > 700;
+      next if $fn =~ /^(?:sin|cos|tan)$/ && (abs($x) > 8 || abs($want) < 1e-6);
+      next if $fn =~ /^(?:sin|cos|tan|asin|acos|atan|exp|log|log10)$/ && abs($x) < 1e-10 && $x != 0 && 0;
+      next if $fn =~ /^(?:sin|cos|tan)$/ && abs($x) > 1e4;
+      next if $fn =~ /^(?:sinh|cosh)$/ && abs($x) > 300;
+      my $v = $f{$fn}->($exact->($x));
+      # one unit in the last place of the exact value
+      my $av = $v->copy->babs;
+      next if $av->is_zero;
+      my $e = POSIX::floor(log(abs($want)) / $LN2 + 1e-9);
+      my $ulp = 2**(($e < -1022 ? -1022 : $e) - 52);
+      my $err = $exact->($want)->bsub($v)->babs->bdiv($exact->($ulp));
+      $err = $err->numify;
+      $worst{$fn} = [$err, $line] if !$worst{$fn} || $err > $worst{$fn}[0];
+      say "BAD $line: $err ulp" if $err > 1.5;
+    }
+  }
+  # pow and atan2, the same way, over rows with finite non-zero results
+  for my $file (qw(pow.dat atan2.dat)) {
+    my $k = 0;
+    for my $line ($rows{$file}->@*) {
+      my ($fn, $a, $b, $r) = split ' ', $line;
+      next if $r eq 'nan' || ++$k % $every;
+      my ($x, $y, $want) = (num($a), num($b), num($r));
+      next unless isfin($x) && isfin($y) && isfin($want) && $want != 0;
+      next if abs($want) < 1e-290 || abs($x) < 1e-290 || abs($y) > 1e6 || abs($x) > 1e290;
+      my $v;
+      if ($fn eq 'atan2') {
+        next if $x == 0 || abs($y) < 1e-290;
+        $v = scalar $exact->($y)->batan2($exact->($x));
+      } else {
+        next if $x <= 0 && !is_int($y);
+        my $bx = $exact->($x);
+        $v = $x < 0 ? scalar($exact->(-$x)->bpow($exact->($y))) : scalar($bx->copy->bpow($exact->($y)));
+        $v->bneg if $x < 0 && is_odd($y);
+      }
+      my $e = POSIX::floor(log(abs($want)) / $LN2 + 1e-9);
+      my $ulp = 2**(($e < -1022 ? -1022 : $e) - 52);
+      my $err = $exact->($want)->bsub($v)->babs->bdiv($exact->($ulp))->numify;
+      $worst{$fn} = [$err, $line] if !$worst{$fn} || $err > $worst{$fn}[0];
+      say "BAD $line: $err ulp" if $err > 1.5;
+    }
+  }
+  say sprintf '%-6s worst %.3f ulp  %s', $_, $worst{$_}[0], $worst{$_}[1] for sort keys %worst;
+}
