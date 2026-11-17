@@ -1,0 +1,4 @@
+# The members each math test program links (tests/check-members): its
+# libkitchen16 members, and libc16's with a c16: prefix.
+
+hugeval: hugeval c16:cstart
