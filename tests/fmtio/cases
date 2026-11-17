@@ -1,0 +1,28 @@
+# tests/fmtio (tests/run-dos): NAME STATUS PROGRAM [ARGUMENTS]
+#
+# fmtio FILE [stdout]: a data file of tests/fmt through fprintf and vfprintf to a
+# file, read back and compared; or, with stdout, through printf and vprintf to
+# standard output, for pc.expect. The data files are links to tests/fmt/data.
+
+ioerr    0 ioerr
+blocks   0 blocks
+nostream 0 nostream
+onlyfp   0 only_fp
+onlyvfp  0 only_vfp
+onlypf   0 only_pf
+onlyvpf  0 only_vpf
+
+pc       0 fmtio PC.DAT stdout
+
+intdi    0 fmtio INTDI.DAT
+longx1   0 fmtio LONGX1.DAT
+misc     0 fmtio MISC.DAT
+intmisc  0 fmtio INTMISC.DAT
+dblxf    0 fmtio DBLXF.DAT
+dblxe    0 fmtio DBLXE.DAT
+dblspec2 0 fmtio DBLSPEC2.DAT
+dblcore  0 fmtio DBLCORE.DAT
+dblrand  0 fmtio DBLRAND.DAT
+dblties  0 fmtio DBLTIES.DAT
+dblexact 0 fmtio DBLEXACT.DAT
+fast3    0 fmtio FAST3.DAT
