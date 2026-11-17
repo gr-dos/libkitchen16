@@ -1,0 +1,16 @@
+# The members each tests/fmtio program links (tests/check-members): its
+# libkitchen16 members, and libc16's with a c16: prefix. `fmt` is the
+# conversion engine. A program that calls printf (or any of the stream
+# functions) links it, vfprintf, the engine, libc16's fwrite and what that
+# links, and stdout; a program that calls sprintf and none of them links
+# nothing of the stream code (nostream); blocks defines its own fwrite, so
+# libc16's is not linked, nor what it links.
+
+nostream: fmt sprintf c16:cstart c16:errno
+only_fp: fmt fprintf vfprintf c16:cstart c16:doserr c16:errno c16:fdtab c16:fwrite c16:stdout c16:write
+only_vfp: fmt vfprintf c16:cstart c16:doserr c16:errno c16:fdtab c16:fwrite c16:stdout c16:write
+only_pf: fmt printf vfprintf c16:cstart c16:doserr c16:errno c16:fdtab c16:fwrite c16:stdout c16:write
+only_vpf: fmt vfprintf vprintf c16:cstart c16:doserr c16:errno c16:fdtab c16:fwrite c16:stdout c16:write
+blocks: fmt fprintf printf vfprintf vprintf c16:cstart c16:errno c16:memcmp c16:memcpy c16:memset c16:stdout
+ioerr: fmt fprintf vfprintf c16:close c16:cstart c16:doserr c16:errno c16:fclose c16:fdtab c16:filelen c16:fopen c16:fwrite c16:open c16:remove c16:write
+fmtio: fmt fprintf printf vfprintf vprintf c16:args c16:argv c16:close c16:cstart c16:doserr c16:errno c16:fclose c16:fdtab c16:fgetc c16:fgets c16:fopen c16:fread c16:fwrite c16:memcmp c16:memcpy c16:open c16:read c16:remove c16:stdout c16:strlen c16:write

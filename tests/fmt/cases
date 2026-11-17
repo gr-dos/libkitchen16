@@ -1,0 +1,49 @@
+# tests/fmt (tests/run-dos): NAME STATUS PROGRAM [ARGUMENTS]
+#
+# fmt FILE [all] runs a data file (made by gen) through sprintf, vsprintf,
+# snprintf and vsnprintf, every line with a different one in turn, or all four
+# with `all`. See README.txt.
+
+# programs with no data
+purity   0 purity
+nolink   0 nolink
+dblonly  0 dblonly
+onlysp   0 only_sp
+onlysn   0 only_sn
+onlyvsp  0 only_vsp
+onlyvsn  0 only_vsn
+limits   0 limits
+
+# the stack: 2,048 bytes, %.1000f of the smallest subnormal and others
+stack    0 stack STACK.DAT
+
+# the corpus
+intdi    0 fmt INTDI.DAT
+intuo    0 fmt INTUO.DAT
+intx     0 fmt INTX.DAT
+intmisc  0 fmt INTMISC.DAT all
+longdi1  0 fmt LONGDI1.DAT
+longdi2  0 fmt LONGDI2.DAT
+longuo1  0 fmt LONGUO1.DAT
+longuo2  0 fmt LONGUO2.DAT
+longx1   0 fmt LONGX1.DAT
+longx2   0 fmt LONGX2.DAT
+misc     0 fmt MISC.DAT all
+snp      0 fmt SNP.DAT all
+dblxe    0 fmt DBLXE.DAT
+dblxf    0 fmt DBLXF.DAT
+dblxg    0 fmt DBLXG.DAT
+dblmisc  0 fmt DBLMISC.DAT all
+dblspec1 0 fmt DBLSPEC1.DAT
+dblspec2 0 fmt DBLSPEC2.DAT
+dblcore  0 fmt DBLCORE.DAT
+dblpow   0 fmt DBLPOW.DAT
+dblties  0 fmt DBLTIES.DAT
+dblrand  0 fmt DBLRAND.DAT
+dblexact 0 fmt DBLEXACT.DAT all
+
+# the integral fast path
+fself    0 fastpath - self
+fast1    0 fastpath FAST1.DAT
+fast2    0 fastpath FAST2.DAT
+fast3    0 fastpath FAST3.DAT
