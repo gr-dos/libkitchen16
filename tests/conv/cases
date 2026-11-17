@@ -1,0 +1,22 @@
+# <kitchen16.h> strtod and atof (docs/spec/conv.md): NAME STATUS PROGRAM [ARGUMENTS]
+# The data files are written by tests/conv/gen (see README.txt); a case passes
+# if its program prints "ok" (the .expect file) and exits 0.
+
+purity   0 purity
+cvsyn    0 conv SYNTAX.DAT
+cvpow10  0 conv POW10.DAT
+cvpow2   0 conv POW2.DAT
+cvedge   0 conv EDGE.DAT
+cvlong   0 conv LONGDIG.DAT
+cvbigex  0 conv BIGEXP.DAT
+cvrand   0 conv RANDOM.DAT
+cvhalf   0 conv HALF.DAT
+cvhalf2  0 conv HALF2.DAT
+errsyn   0 errno SYNTAX.DAT
+erredge  0 errno EDGE.DAT
+errrand  0 errno RANDOM.DAT
+atsyn    0 atof SYNTAX.DAT
+atedge   0 atof EDGE.DAT
+atrand   0 atof RANDOM.DAT
+longstr  0 longstr
+roundtrp 0 roundtrp

@@ -1,0 +1,14 @@
+# The members each conv test program links (tests/check-members): its
+# libkitchen16 members, and libc16's with a c16: prefix. The names of the
+# libkitchen16 members are the src/ file names: strtod.c and atof.c (atof
+# calls strtod). purity and longstr use no libc16 beyond the startup and
+# errno (the library may link only errno from libc16); the data-driven
+# programs also link what reads a file. The helper objects of tests/conv/lib
+# are not library members. roundtrp is not listed: it links sprintf's members,
+# whose names fmt's implementation chooses.
+
+purity: strtod c16:cstart c16:errno
+longstr: strtod c16:cstart c16:errno
+conv: strtod c16:cstart c16:errno c16:argv c16:args c16:fopen c16:fgets c16:fclose c16:fgetc c16:open c16:close c16:read c16:doserr c16:fdtab
+errno: strtod atof c16:cstart c16:errno c16:argv c16:args c16:fopen c16:fgets c16:fclose c16:fgetc c16:open c16:close c16:read c16:doserr c16:fdtab
+atof: strtod atof c16:cstart c16:errno c16:argv c16:args c16:fopen c16:fgets c16:fclose c16:fgetc c16:open c16:close c16:read c16:doserr c16:fdtab
