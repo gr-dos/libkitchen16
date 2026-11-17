@@ -103,7 +103,7 @@ write_file("$dir/DOSBOX.CNF", <<~"END");
 {
   local $ENV{SDL_VIDEODRIVER} = 'dummy';
   local $ENV{SDL_AUDIODRIVER} = 'dummy';
-  system('sh', '-c', 'exec "$@" >"$0" 2>&1', "$abs/DOSBOX.LOG", 'timeout', '-s', 'KILL', '120',
+  system('sh', '-c', 'exec "$@" >"$0" 2>&1', "$abs/DOSBOX.LOG", 'timeout', '-s', 'KILL', $ENV{RUN_DOS_TIMEOUT} // 600,
     'dosbox-x', '-nogui', '-nomenu', '-conf', "$abs/DOSBOX.CNF");
 }
 
