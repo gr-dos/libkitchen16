@@ -1,3 +1,50 @@
 # <math.h> tests (tests/run-dos): NAME STATUS PROGRAM [ARGUMENTS]
+#
+# The data files of tests/math/data are written by tests/math/gen; each
+# case's program prints "ok" if every row of its file passes (README.txt).
 
 hugeval 0 hugeval
+
+# selective linking: one function each (the members are checked by check-link)
+l_fabs 0 l_fabs
+l_sqrt 0 l_sqrt
+l_sin 0 l_sin
+l_pow 0 l_pow
+
+# functions of one double
+sin 0 unary sin.dat
+cos 0 unary cos.dat
+tan 0 unary tan.dat
+asin 0 unary asin.dat
+acos 0 unary acos.dat
+atan 0 unary atan.dat
+sinh 0 unary sinh.dat
+cosh 0 unary cosh.dat
+tanh 0 unary tanh.dat
+exp 0 unary exp.dat
+log 0 unary log.dat
+log10 0 unary log10.dat
+sqrt 0 unary sqrt.dat
+fabs 0 unary fabs.dat
+floor 0 unary floor.dat
+ceil 0 unary ceil.dat
+
+# functions of two doubles
+atan2 0 binary atan2.dat
+pow 0 binary pow.dat
+fmod 0 binary fmod.dat
+
+# frexp, modf, ldexp: exponent and integral part too
+frexp 0 special frexp.dat
+modf 0 special modf.dat
+ldexp 0 special ldexp.dat
+
+# errno of the special values and errors, and that no function clears it
+errno 0 errno errno.dat
+
+# the exact class, bit for bit: f(0), integer powers, pow(x, 0), pow(x, 1),
+# fabs/floor/ceil/sqrt/fmod; pow(2, n) for every n; log10 of 10^n
+exact 0 exact exact.dat
+p2n 0 exact p2n.dat
+p2p 0 exact p2p.dat
+l10 0 exact l10.dat
