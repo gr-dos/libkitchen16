@@ -1,0 +1,63 @@
+#!/usr/bin/env perl
+use 5.040;
+use warnings;
+use autodie;
+
+=head1 NAME
+
+report - the time of each function, from tests/bench's output, in each model
+
+=head1 SYNOPSIS
+
+  tests/bench/report MODEL=DIR...
+
+=head1 DESCRIPTION
+
+DIR holds one model's F<FPC.OUT>, F<FMT.OUT>, F<CONV.OUT> and F<MATH.OUT>
+from C<bench> (C<make bench> runs it). Each line of those is
+
+  NAME TENTHS-OF-A-MICROSECOND CALLS
+
+Prints a Markdown table: one row per operation, the time of one call in
+microseconds in each model, and the number of calls the figure is from
+in the first model. The C<none> row (from the fpc run) is the loop's own cost, already taken
+off the others.
+
+=cut
+
+my @models = map { [split /=/, $_, 2] } @ARGV;
+die "usage: $0 MODEL=DIR...\n" unless @models && !grep { !defined $_->[1] } @models;
+
+my (@order, %time, %calls);
+for my $m (@models) {
+  for my $group (qw(FPC FMT CONV MATH)) {
+    my $file = "$m->[1]/$group.OUT";
+    open my $fh, '<', $file;
+    while (my $line = <$fh>) {
+      $line =~ s/\r?\n\z//;
+      next unless $line =~ /^(.+) (\d+) (\d+)$/;
+      my ($name, $tenths, $n) = ($1, $2, $3);
+      next if $name eq 'none' && $group ne 'FPC';    # the same loop in every group
+      my $key = "$group $name";
+      push @order, [$group, $name] unless exists $time{$key};
+      $time{$key}{ $m->[0] } = $tenths;
+      $calls{$key} //= $n;
+    }
+  }
+}
+
+sub us ($tenths) {
+  return '-' unless defined $tenths;
+  return sprintf('%.1f', $tenths / 10) if $tenths < 1000;
+  my $s = sprintf '%.0f', $tenths / 10;
+  1 while $s =~ s/^(\d+)(\d{3})/$1,$2/;
+  return $s;
+}
+
+say '| Group | Operation | ', join(' | ', map { "$_->[0] (µs)" } @models), ' | Calls timed |';
+say '|---|---|', join('|', map { '---:' } @models), '|---:|';
+for my $o (@order) {
+  my $key = "$o->[0] $o->[1]";
+  say "| \L$o->[0]\E | `$o->[1]` | ", join(' | ', map { us($time{$key}{ $_->[0] }) } @models),
+    " | $calls{$key} |";
+}

@@ -1,0 +1,2 @@
+# Run by tests/run-dos with fpu=false: no coprocessor must be present.
+nofpu 0 nofpu
