@@ -28,7 +28,7 @@ Converts the initial portion of the string `nptr` to a `double`.
 3. Then one of:
    - a **decimal number**: a non-empty sequence of digits optionally containing one `.`, with at least one digit in all, then an optional exponent: `e` or `E`, an optional sign, and a non-empty sequence of digits. An exponent marker not followed by digits (`1e`, `1e+`) is not part of the number, which ends before the `e`;
    - `inf` or `infinity`, in any mix of upper and lower case;
-   - `nan`, in any case, optionally followed by `(` and a sequence of letters, digits and underscores and a `)`. If the `(` does not begin such a sequence (`nan(`, `nan(a b)`), the number ends after the `nan`.
+   - `nan`, in any case, optionally followed by `(`, a possibly empty sequence of letters, digits and underscores, and a `)`: `nan()`, `nan(0)` and `nan(a_1)` are all accepted whole (C99 7.20.1.3: `nan(n-char-sequence`<sub>opt</sub>`)`). If the `(` does not begin such a form (`nan(`, `nan(a b)`, `nan(abc`), the number ends after the `nan`.
 4. **Hexadecimal floating constants (`0x1.8p3`) are not accepted**: `0x10` is the number `0` followed by `x10`. (C99's, and not C89's.)
 
 ### Result
@@ -41,6 +41,19 @@ Converts the initial portion of the string `nptr` to a `double`.
 - If no conversion can be made (the string has no number after the optional white space and sign): the result is `0.0`, and `*endptr` is set to `nptr`, so the whole string, white space included, is "not converted". `errno` is not set (the C89 standard does not require `EINVAL`).
 - `endptr` may be a null pointer. Otherwise `*endptr` points at the first character after the longest initial portion accepted by the syntax above.
 - `errno` is never cleared: it is only set, to `ERANGE`, as above.
+
+### Choices beyond the C standard
+
+| Case | C | Here | Tests |
+|---|---|---|---|
+| `inf`, `infinity`, `nan` | C99 only; C89's `strtod` has no such forms | accepted, in any case | `tests/conv` syntax corpus |
+| `nan(...)` | C99: the meaning of the sequence is implementation-defined | the sequence is syntax only; the result is the quiet NaN `0x7FF8000000000000` with the sign given, whatever it holds; `nan()` is accepted | `nan()`, `-nan()x` and the forms above |
+| hexadecimal floats (`0x1.8p3`) | C99 requires them | not accepted: `0x10` is `0` followed by `x10` | the syntax corpus |
+| no conversion | `0.0` and `*endptr = nptr`; no `errno` required (POSIX allows `EINVAL`) | `errno` is not set | the syntax corpus |
+| underflow | `ERANGE` is set when the result is too small; C89 leaves the value of an inexact subnormal to the implementation | `ERANGE` for a non-zero value that rounds to zero and for an inexact subnormal result, decided on the rounded result: a value that rounds up to the smallest normal number is not an underflow | the underflow rows of the corpus |
+| `errno` | | only ever set to `ERANGE`, never cleared | `tests/conv/errno.c` |
+
+A program that moves to another C library must not rely on these rows, which may differ there.
 
 ## `atof`
 

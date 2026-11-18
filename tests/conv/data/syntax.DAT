@@ -476,6 +476,11 @@ nan- 4 - -NaNx
 nan+ 8 - NaN(abc)
 nan- 9 - -NaN(abc)
 nan+ 8 - NaN(abc)x
+nan+ 5 - nan()
+nan+ 5 - nan()x
+nan- 6 - -nan()
+nan+ 3 - nan(())
+nan+ 5 - NaN()
 nan+ 3 - nan(
 nan+ 3 - nan(abc
 nan+ 8 - nan(abc)

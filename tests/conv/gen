@@ -162,7 +162,7 @@ sub oracle ($str) {
     return ($neg ? 'FFF0000000000000' : '7FF0000000000000', pos($str), 0, undef);
   }
   pos($str) = $pos;
-  if ($str =~ /\Gnan(?:\([A-Za-z0-9_]+\))?/gci) {
+  if ($str =~ /\Gnan(?:\([A-Za-z0-9_]*\))?/gci) {
     return ($neg ? 'nan-' : 'nan+', pos($str), 0, undef);
   }
   return ('0000000000000000', 0, 0, undef);
@@ -189,6 +189,8 @@ sub selftest {
     ['0x10', '0000000000000000', 1, 0], ['.', '0000000000000000', 0, 0],
     ['inFinity!', '7FF0000000000000', 8, 0], ['infinit', '7FF0000000000000', 3, 0],
     ['-nan(a_1)x', 'nan-', 9, 0], ['nan(a b)', 'nan+', 3, 0], ['nan(', 'nan+', 3, 0],
+    ['nan()', 'nan+', 5, 0], ['-nan()x', 'nan-', 6, 0], ['NAN()', 'nan+', 5, 0], ['nan()()', 'nan+', 5, 0],
+    ['nan( )', 'nan+', 3, 0], ['inf()', '7FF0000000000000', 3, 0], ['+nan()', 'nan+', 6, 0],
   );
   for my $t (@t) {
     my ($s, $bits, $off, $er) = @$t;
@@ -353,7 +355,7 @@ my $B = sub { Math::BigInt->new(shift) };
   for my $w (qw(nan NAN Nan nAn naN NaN)) {
     push @s, $w, "-$w", "+$w", " $w", "$w ", "${w}x", "${w}1", "-${w}x", "${w}(abc)", "-${w}(abc)", "${w}(abc)x";
   }
-  push @s, ('nan(', 'nan(abc', 'nan(abc)', 'nan(a)', 'nan(0)', 'nan(_)', 'nan(a_1)', 'nan(A_B_9)',
+  push @s, ('nan()', 'nan()x', '-nan()', 'nan(())', 'NaN()', 'nan(', 'nan(abc', 'nan(abc)', 'nan(a)', 'nan(0)', 'nan(_)', 'nan(a_1)', 'nan(A_B_9)',
     'nan(abc)def', 'nan(abc))', 'nan((abc)', 'nan(a b)', 'nan(a-b)', 'nan(a.b)', 'nan( abc)', 'nan(abc )',
     'nan(!)', "nan(a\tb)", "nan(\x80)", 'nan(a(b)', 'nan (abc)', 'nanx', 'nan1', 'na', 'n', 'nn', 'nand',
     'NaN(0x7ff)', 'nan(0x7ff)', 'nan(123456789012345678901234567890)', '-nan(a b)', '+nan(', '+-nan', '-+nan',
