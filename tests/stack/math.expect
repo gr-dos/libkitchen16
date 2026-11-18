@@ -1,0 +1,27 @@
+# the table of -v: one line per function, then the deepest of the group (the figures are in the output, NAME.OUT)
+/^sin [0-9]+ \(case [0-9]+\)$/
+/^cos [0-9]+ \(case [0-9]+\)$/
+/^tan [0-9]+ \(case [0-9]+\)$/
+/^asin [0-9]+ \(case [0-9]+\)$/
+/^acos [0-9]+ \(case [0-9]+\)$/
+/^atan [0-9]+ \(case [0-9]+\)$/
+/^sinh [0-9]+ \(case [0-9]+\)$/
+/^cosh [0-9]+ \(case [0-9]+\)$/
+/^tanh [0-9]+ \(case [0-9]+\)$/
+/^exp [0-9]+ \(case [0-9]+\)$/
+/^log [0-9]+ \(case [0-9]+\)$/
+/^log10 [0-9]+ \(case [0-9]+\)$/
+/^sqrt [0-9]+ \(case [0-9]+\)$/
+/^fabs [0-9]+ \(case [0-9]+\)$/
+/^floor [0-9]+ \(case [0-9]+\)$/
+/^ceil [0-9]+ \(case [0-9]+\)$/
+/^deepest [0-9]+ bytes of 6144$/
+/^atan2 [0-9]+ \(case [0-9]+\)$/
+/^pow [0-9]+ \(case [0-9]+\)$/
+/^fmod [0-9]+ \(case [0-9]+\)$/
+/^deepest [0-9]+ bytes of 6144$/
+/^ldexp [0-9]+ \(case [0-9]+\)$/
+/^frexp [0-9]+ \(case [0-9]+\)$/
+/^modf [0-9]+ \(case [0-9]+\)$/
+/^deepest [0-9]+ bytes of 6144$/
+ok
