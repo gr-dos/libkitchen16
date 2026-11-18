@@ -14,7 +14,7 @@
 
 static unsigned calls, biggest, total, overflow;
 static unsigned fail_after;    /* 0: never; n: the nth call and later ones fail */
-static unsigned short_by;      /* the nth call writes this many characters fewer than asked */
+static unsigned short_by;      /* the nth call writes this many characters fewer than asked (0: none) */
 static char kept[KEEP];
 
 size_t __cdecl fwrite(const void *ptr, size_t size, size_t nmemb, FILE *fp)
@@ -27,7 +27,7 @@ size_t __cdecl fwrite(const void *ptr, size_t size, size_t nmemb, FILE *fp)
         /* this call and every later one fail: the test counts them */
         unsigned put = 0;
 
-        if (calls == fail_after && short_by < bytes)
+        if (calls == fail_after && short_by && short_by < bytes)
             put = bytes - short_by;
         if (total + put <= KEEP)
             memcpy(kept + total, ptr, put);
