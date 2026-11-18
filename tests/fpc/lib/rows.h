@@ -12,6 +12,26 @@
 
 typedef unsigned short u16;
 
+static void put_hex(unsigned w)
+{
+    char b[5];
+    int i;
+
+    for (i = 3; i >= 0; i--) {
+        b[i] = "0123456789ABCDEF"[w & 15];
+        w >>= 4;
+    }
+    b[4] = '\0';
+    t_puts(b);
+}
+
+/* put the words w[n-1] .. w[0] (the most significant first) */
+static void put_words(const unsigned short *w, int n)
+{
+    while (n--)
+        put_hex(w[n]);
+}
+
 static FILE *data_fp;
 static char row[200];
 static unsigned rowno;
