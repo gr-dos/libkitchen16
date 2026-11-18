@@ -1,0 +1,59 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+use autodie;
+
+=head1 NAME
+
+check-link - check the members that the l_NAME test programs link
+
+=head1 SYNOPSIS
+
+  tests/math/check-link DIR NAME...
+
+=head1 DESCRIPTION
+
+For each NAME, DIR/l_NAME.MEMBERS (written by scripts/check-map: the
+libkitchen16 members the program linked, and libc16's with a c16: prefix)
+must contain the member NAME, which is the function's own, and the member
+of no other public function of <math.h> (a helper of another name, shared
+with other functions, is allowed: the member names of helpers are the
+implementation's choice, DESIGN.md). For the functions that work on the
+bits and need no helper (fabs, floor, ceil, frexp, modf, ldexp), nothing
+else of libkitchen16's at all. The test programs reference nothing but
+the function from libkitchen16 and testio from the test support, so any
+other libkitchen16 member is a helper, or HUGE_VAL's object.
+
+Prints one line per program; exits 1 if one fails.
+
+=cut
+
+my ($dir, @names) = @ARGV;
+die "usage: $0 DIR NAME...\n" unless @names;
+
+my @public = qw(acos asin atan atan2 ceil cos cosh exp fabs floor fmod frexp ldexp log log10 modf pow sin sinh sqrt tan tanh);
+my %bits   = map { $_ => 1 } qw(fabs floor ceil frexp modf ldexp);
+
+my $failed = 0;
+for my $name (@names) {
+  open my $fh, '<', "$dir/l_$name.MEMBERS";
+  my @members = map { chomp; $_ } <$fh>;
+  close $fh;
+  my @why;
+  push @why, "member $name is not linked" unless grep { $_ eq $name } @members;
+  for my $other (grep { $_ ne $name } @public) {
+    push @why, "member $other is linked" if grep { $_ eq $other } @members;
+  }
+  if ($bits{$name}) {
+    my @extra = grep { $_ ne $name && !/^c16:/ } @members;
+    push @why, "other members (@extra) are linked, but $name needs no helper" if @extra;
+  }
+  if (@why) {
+    say "not ok l_$name members: " . join('; ', @why) . " (linked: @members)";
+    $failed = 1;
+  } else {
+    say "ok l_$name members: @members";
+  }
+}
+exit $failed;

@@ -1,0 +1,22 @@
+# The members each math test program links (tests/check-members): its
+# libkitchen16 members, and libc16's with a c16: prefix.
+#
+# k_* are the internal members shared by several functions (k_exp: e^x in
+# double-double, k_log: ln x in double-double, k_trig: argument reduction
+# and the sin and cos kernels, k_atan and k_asq: atan and a/sqrt(1-a^2) in
+# double-double, k_sqrt: the exact integer square root, k_scale: x * 2^n,
+# k_powi: integer powers, k_powc: the cases of pow that need no logarithm,
+# k_dd: the error terms of a sum and of a product).
+# fdadd, fdcmp, fdcore, fddiv, fdfromi, fdmul, fdneg and fdtol are the fpc
+# helper members these programs link (the same in every model).
+
+hugeval: hugeval c16:cstart
+l_fabs: fabs c16:cstart
+l_sqrt: sqrt c16:cstart c16:errno k_sqrt
+l_sin: sin c16:cstart c16:errno k_trig fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_dd
+l_pow: pow c16:cstart k_powc k_log k_dd fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_exp k_scale c16:errno k_powi k_sqrt
+unary: sin cos tan asin acos atan sinh cosh tanh exp log log10 sqrt fabs floor ceil c16:errno c16:fopen c16:fgets c16:fclose c16:cstart c16:argv k_trig fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_asq k_atan k_sqrt k_dd k_exp k_scale k_log c16:open c16:fgetc c16:close c16:args c16:doserr c16:fdtab c16:read
+binary: atan2 pow fmod c16:errno c16:fopen c16:fgets c16:fclose c16:cstart c16:argv fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_dd k_atan k_powc k_log k_exp k_scale c16:open c16:fgetc c16:close c16:args k_powi k_sqrt c16:doserr c16:fdtab c16:read
+special: c16:errno frexp modf ldexp c16:fopen c16:fgets c16:fclose c16:cstart c16:argv c16:open c16:fgetc c16:close c16:args c16:doserr c16:fdtab c16:read
+errno: sin cos tan asin acos atan sinh cosh tanh exp log log10 sqrt fabs floor ceil atan2 pow fmod c16:errno frexp modf ldexp c16:fopen c16:fgets c16:fclose c16:cstart c16:argv k_trig fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_asq k_atan k_sqrt k_dd k_exp k_scale k_log k_powc c16:open c16:fgetc c16:close c16:args k_powi c16:doserr c16:fdtab c16:read
+exact: sin cos tan asin acos atan sinh cosh tanh exp log log10 sqrt fabs floor ceil atan2 pow fmod c16:errno c16:fopen c16:fgets c16:fclose c16:cstart c16:argv k_trig fdadd fdcmp fdcore fddiv fdfromi fdmul fdneg fdtol k_asq k_atan k_sqrt k_dd k_exp k_scale k_log k_powc c16:open c16:fgetc c16:close c16:args k_powi c16:doserr c16:fdtab c16:read

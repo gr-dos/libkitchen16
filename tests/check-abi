@@ -1,0 +1,100 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+use autodie;
+
+=head1 NAME
+
+check-abi - check the floating-point conventions of docs/ABI.md
+
+=head1 SYNOPSIS
+
+  tests/check-abi MODEL OUTDIR WCC-FLAGS...
+
+=head1 DESCRIPTION
+
+Compiles the call-site fixtures in tests/abi with C<wcc> and WCC-FLAGS, the
+flags a consumer uses (with C<-fpc>) for memory model MODEL (C<s>, C<c> or
+C<l>), into OUTDIR, disassembles them with C<wdis>, and checks what
+docs/ABI.md states:
+
+=over
+
+=item * the floating-point operations of tests/abi/fpc.c are calls to
+exactly the helpers of docs/spec/fpc.md: the C<F> forms in every model, and
+the C<E> forms too when data pointers are far (the compact and large
+models);
+
+=item * helpers are called near in the small and compact models and far in
+the large model;
+
+=item * a C<double> argument of a C<__cdecl> function is pushed as four
+words, the low word last (so lowest in memory), and the result of a
+C<__cdecl> function returning a C<double> is read through C<AX>, the offset
+of an 8-byte slot in C<DGROUP>.
+
+=back
+
+Prints one line per check and exits 1 if any fails.
+
+=cut
+
+my ($model, $out, @flags) = @ARGV;
+die "usage: $0 MODEL OUTDIR WCC-FLAGS...\n" unless @flags && $model =~ /^[scl]$/;
+my $call = $model eq 'l' ? 'far' : 'near';
+my $other = $model eq 'l' ? 'near' : 'far';
+my $dir = 'tests/abi';
+mkdir $out unless -d $out;
+my $failed = 0;
+
+my %dis = map { $_ => disassemble($_) } qw(fpc dblcdecl);
+
+my @F = qw(__FDA __FDC __FDD __FDFS __FDI4 __FDM __FDN __FDS __FDU4 __FSFD __I4FD __U4FD);
+my @E = qw(__EDA __EDC __EDD __EDM __EDS);
+check('fpc operations call exactly the helpers of docs/spec/fpc.md',
+  join(' ', sort(externs($dis{fpc}))) eq join(' ', sort($model eq 's' ? @F : (@F, @E))));
+my @calls = ($dis{fpc} // '') =~ /^\t(?:call|jmp)\t+(\w+) ptr __/mg;
+check("helpers are $call calls", @calls > 0 && !grep { $_ ne $call } @calls);
+check("no helper is called $other", !grep { $_ eq $other } @calls);
+
+my $d = $dis{dblcdecl} // '';
+check('double argument pushed as four words, low word last',
+  scalar $d =~ /^\tpush\t+ax\n\tpush\t+bx\n\tpush\t+cx\n\tpush\t+dx\n(?:\tpush\t+ss\n\tpop\t+ds\n|\tmov\t+ax,ss\n\tmov\t+ds,ax\n)?
+         \tcall\t+$call\ ptr\ _ext\n/mx);
+check('double result of a __cdecl function is read through AX',
+  scalar $d =~ /\tcall\t+$call ptr _ext\n\tmov\t+bx,ax\n\tmov\t+ax,word ptr (?:ss:)?6\[bx\]\n/);
+check('a __cdecl function returning double returns the offset of an 8-byte slot in AX',
+  scalar $d =~ /^_d_def:\n.*?\tmov\t+ax,offset DGROUP:L\$\d+\n.*?\tret(?:f)?\n/ms);
+
+exit $failed;
+
+sub compile ($name) {
+  my $pid = fork // die;
+  if (!$pid) {
+    open STDOUT, '>', '/dev/null';
+    open STDERR, '>', '/dev/null';
+    exec 'wcc', @flags, "-fo=$out/$name.obj", "-fr=$out/$name.err", "$dir/$name.c";
+  }
+  waitpid $pid, 0;
+  return $? == 0;
+}
+
+sub disassemble ($name) {
+  compile($name) or return;
+  open my $fh, '-|', "$ENV{WATCOM}/binl64/wdis", '-a', "$out/$name.obj";
+  local $/;
+  my $text = <$fh>;
+  close $fh;
+  return $text;
+}
+
+sub externs ($text) {
+  return ($text // '') =~ /^\t\tEXTRN\t(\w+):/mg;
+}
+
+sub check ($what, $ok) {
+  $ok = !!$ok;
+  say $ok ? "ok $what" : "not ok $what";
+  $failed = 1 unless $ok;
+}

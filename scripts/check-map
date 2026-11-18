@@ -1,0 +1,53 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+use autodie;
+
+=head1 NAME
+
+check-map - check that a program links only its objects, libkitchen16 and libc16
+
+=head1 SYNOPSIS
+
+  scripts/check-map MAP LIBRARY LIBC16-LIBRARY OBJECT...
+
+=head1 DESCRIPTION
+
+Reads the wlink map MAP and checks that every module in it comes from one
+of the OBJECTs, from LIBRARY (libkitchen16's) or from LIBC16-LIBRARY
+(libc16's) (DESIGN.md, section 5): a module from any other file, such as
+an Open Watcom runtime library, is an error. Prints the names of the
+members that were linked (their source file names without directory or
+extension), one per line in link order: libkitchen16's as they are,
+libc16's with the prefix C<c16:>. Exits 1 on an error.
+
+=cut
+
+my ($map, $library, $libc16, @objects) = @ARGV;
+die "usage: $0 MAP LIBRARY LIBC16-LIBRARY OBJECT...\n" unless defined $libc16;
+
+my %object = map { $_ => 1 } @objects;
+my $bad    = 0;
+my @members;
+
+open my $fh, '<', $map;
+while (my $line = <$fh>) {
+  next unless $line =~ /^Module: (.*)\((.*)\)\s*$/;
+  my ($file, $module) = ($1, $2);
+  # The module name is the member's source path, which wcc makes
+  # absolute; report just its base name.
+  my $name = $module =~ s{^.*/}{}r =~ s{\.[^.]*$}{}r;
+  if ($file eq $library) {
+    push @members, $name;
+  } elsif ($file eq $libc16) {
+    push @members, "c16:$name";
+  } elsif (!$object{$file}) {
+    say STDERR "$map: module $module from $file, not $library, $libc16 or an object";
+    $bad = 1;
+  }
+}
+close $fh;
+
+say for @members;
+exit $bad;

@@ -1,0 +1,19 @@
+# the table of -v: one line per function, then the deepest of the group (the figures are in the output, NAME.OUT)
+/^\(nothing\) [0-9]+ \(case [0-9]+\)$/
+/^FDA [0-9]+ \(case [0-9]+\)$/
+/^FDS [0-9]+ \(case [0-9]+\)$/
+/^FDM [0-9]+ \(case [0-9]+\)$/
+/^FDD [0-9]+ \(case [0-9]+\)$/
+/^FDN [0-9]+ \(case [0-9]+\)$/
+/^FDC\< [0-9]+ \(case [0-9]+\)$/
+/^FDC\=\= [0-9]+ \(case [0-9]+\)$/
+/^FDC\>\= [0-9]+ \(case [0-9]+\)$/
+/^FDI4 [0-9]+ \(case [0-9]+\)$/
+/^FDU4 [0-9]+ \(case [0-9]+\)$/
+/^FDI4\(int\) [0-9]+ \(case [0-9]+\)$/
+/^I4FD [0-9]+ \(case [0-9]+\)$/
+/^U4FD [0-9]+ \(case [0-9]+\)$/
+/^FDFS [0-9]+ \(case [0-9]+\)$/
+/^FSFD [0-9]+ \(case [0-9]+\)$/
+/^deepest [0-9]+ bytes of 6144$/
+ok

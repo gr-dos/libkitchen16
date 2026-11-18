@@ -1,0 +1,1258 @@
+P	[%*d]	i:0 i:42	[42]	4
+P	[%-*d]	i:0 i:-42	[-42]	5
+P	[%0*d]	i:0 i:42	[42]	4
+P	[%*s]	i:0 s:abc	[abc]	5
+P	[%.*s]	i:0 s:abcdefgh	[]	2
+P	[%.*d]	i:0 i:42	[42]	4
+P	[%.*f]	i:0 d:400921F9F01B866E	[3]	3
+P	[%.*e]	i:0 d:403F6A786C22680A	[3e+01]	7
+P	[%.*g]	i:0 d:403F6A786C22680A	[3e+01]	7
+P	[%*.*f]	i:0 i:3 d:4004000000000000	[2.500]	7
+P	[%*.*x]	i:10 i:0 i:48879	[      beef]	12
+P	[%*c]	i:0 i:65	[A]	3
+P	[%*d]	i:1 i:42	[42]	4
+P	[%-*d]	i:1 i:-42	[-42]	5
+P	[%0*d]	i:1 i:42	[42]	4
+P	[%*s]	i:1 s:abc	[abc]	5
+P	[%.*s]	i:1 s:abcdefgh	[a]	3
+P	[%.*d]	i:1 i:42	[42]	4
+P	[%.*f]	i:1 d:400921F9F01B866E	[3.1]	5
+P	[%.*e]	i:1 d:403F6A786C22680A	[3.1e+01]	9
+P	[%.*g]	i:1 d:403F6A786C22680A	[3e+01]	7
+P	[%*.*f]	i:1 i:3 d:4004000000000000	[2.500]	7
+P	[%*.*x]	i:10 i:1 i:48879	[      beef]	12
+P	[%*c]	i:1 i:65	[A]	3
+P	[%*d]	i:-1 i:42	[42]	4
+P	[%-*d]	i:-1 i:-42	[-42]	5
+P	[%0*d]	i:-1 i:42	[42]	4
+P	[%*s]	i:-1 s:abc	[abc]	5
+P	[%.*s]	i:-1 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:-1 i:42	[42]	4
+P	[%.*f]	i:-1 d:400921F9F01B866E	[3.141590]	10
+P	[%.*e]	i:-1 d:403F6A786C22680A	[3.141590e+01]	14
+P	[%.*g]	i:-1 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:-1 i:3 d:4004000000000000	[2.500]	7
+P	[%*.*x]	i:10 i:-1 i:48879	[      beef]	12
+P	[%*c]	i:-1 i:65	[A]	3
+P	[%*d]	i:7 i:42	[     42]	9
+P	[%-*d]	i:7 i:-42	[-42    ]	9
+P	[%0*d]	i:7 i:42	[0000042]	9
+P	[%*s]	i:7 s:abc	[    abc]	9
+P	[%.*s]	i:7 s:abcdefgh	[abcdefg]	9
+P	[%.*d]	i:7 i:42	[0000042]	9
+P	[%.*f]	i:7 d:400921F9F01B866E	[3.1415900]	11
+P	[%.*e]	i:7 d:403F6A786C22680A	[3.1415900e+01]	15
+P	[%.*g]	i:7 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:7 i:3 d:4004000000000000	[  2.500]	9
+P	[%*.*x]	i:10 i:7 i:48879	[   000beef]	12
+P	[%*c]	i:7 i:65	[      A]	9
+P	[%*d]	i:8 i:42	[      42]	10
+P	[%-*d]	i:8 i:-42	[-42     ]	10
+P	[%0*d]	i:8 i:42	[00000042]	10
+P	[%*s]	i:8 s:abc	[     abc]	10
+P	[%.*s]	i:8 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:8 i:42	[00000042]	10
+P	[%.*f]	i:8 d:400921F9F01B866E	[3.14159000]	12
+P	[%.*e]	i:8 d:403F6A786C22680A	[3.14159000e+01]	16
+P	[%.*g]	i:8 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:8 i:3 d:4004000000000000	[   2.500]	10
+P	[%*.*x]	i:10 i:8 i:48879	[  0000beef]	12
+P	[%*c]	i:8 i:65	[       A]	10
+P	[%*d]	i:12 i:42	[          42]	14
+P	[%-*d]	i:12 i:-42	[-42         ]	14
+P	[%0*d]	i:12 i:42	[000000000042]	14
+P	[%*s]	i:12 s:abc	[         abc]	14
+P	[%.*s]	i:12 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:12 i:42	[000000000042]	14
+P	[%.*f]	i:12 d:400921F9F01B866E	[3.141590000000]	16
+P	[%.*e]	i:12 d:403F6A786C22680A	[3.141590000000e+01]	20
+P	[%.*g]	i:12 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:12 i:3 d:4004000000000000	[       2.500]	14
+P	[%*.*x]	i:10 i:12 i:48879	[00000000beef]	14
+P	[%*c]	i:12 i:65	[           A]	14
+P	[%*d]	i:-12 i:42	[42          ]	14
+P	[%-*d]	i:-12 i:-42	[-42         ]	14
+P	[%0*d]	i:-12 i:42	[42          ]	14
+P	[%*s]	i:-12 s:abc	[abc         ]	14
+P	[%.*s]	i:-12 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:-12 i:42	[42]	4
+P	[%.*f]	i:-12 d:400921F9F01B866E	[3.141590]	10
+P	[%.*e]	i:-12 d:403F6A786C22680A	[3.141590e+01]	14
+P	[%.*g]	i:-12 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:-12 i:3 d:4004000000000000	[2.500       ]	14
+P	[%*.*x]	i:10 i:-12 i:48879	[      beef]	12
+P	[%*c]	i:-12 i:65	[A           ]	14
+P	[%*d]	i:30 i:42	[                            42]	32
+P	[%-*d]	i:30 i:-42	[-42                           ]	32
+P	[%0*d]	i:30 i:42	[000000000000000000000000000042]	32
+P	[%*s]	i:30 s:abc	[                           abc]	32
+P	[%.*s]	i:30 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:30 i:42	[000000000000000000000000000042]	32
+P	[%.*f]	i:30 d:400921F9F01B866E	[3.141589999999999882618340052431]	34
+P	[%.*e]	i:30 d:403F6A786C22680A	[3.141590000000000060254023992456e+01]	38
+P	[%.*g]	i:30 d:403F6A786C22680A	[31.4159000000000006025402399246]	33
+P	[%*.*f]	i:30 i:3 d:4004000000000000	[                         2.500]	32
+P	[%*.*x]	i:10 i:30 i:48879	[00000000000000000000000000beef]	32
+P	[%*c]	i:30 i:65	[                             A]	32
+P	[%*d]	i:-30 i:42	[42                            ]	32
+P	[%-*d]	i:-30 i:-42	[-42                           ]	32
+P	[%0*d]	i:-30 i:42	[42                            ]	32
+P	[%*s]	i:-30 s:abc	[abc                           ]	32
+P	[%.*s]	i:-30 s:abcdefgh	[abcdefgh]	10
+P	[%.*d]	i:-30 i:42	[42]	4
+P	[%.*f]	i:-30 d:400921F9F01B866E	[3.141590]	10
+P	[%.*e]	i:-30 d:403F6A786C22680A	[3.141590e+01]	14
+P	[%.*g]	i:-30 d:403F6A786C22680A	[31.4159]	9
+P	[%*.*f]	i:-30 i:3 d:4004000000000000	[2.500                         ]	32
+P	[%*.*x]	i:10 i:-30 i:48879	[      beef]	12
+P	[%*c]	i:-30 i:65	[A                             ]	32
+P	[%.*s]	i:32767 s:abcdefgh	[abcdefgh]	10
+P	[%.*s]	i:-32767 s:abcdefgh	[abcdefgh]	10
+P	[%.*s]	i:-32768 s:abcdefgh	[abcdefgh]	10
+P	[%.*s]	i:100 s:abcdefgh	[abcdefgh]	10
+P	[%*.*s]	i:-8 i:-2 s:hello	[hello   ]	10
+P	[%*.*s]	i:8 i:2 s:hello	[      he]	10
+P	[%-*.*ld]	i:12 i:8 l:-123456	[-00123456   ]	14
+P	[%*d|%*d|%*d]	i:3 i:1 i:-3 i:2 i:0 i:3	[  1|2  |3]	11
+P	%%		%	1
+P	100%%		100%	4
+P	%%%%		%%	2
+P	%%d		%d	2
+P	%d%%%d	i:1 i:2	1%2	3
+P				0
+P	no conversions at all		no conversions at all	21
+P	a%cb%cc	i:65 i:66	aAbBc	5
+P	%d %d %d %d %d	i:1 i:2 i:3 i:4 i:5	1 2 3 4 5	9
+P	%d %s %c %x %lu %o	i:-7 s:str i:90 i:255 l:4000000000 i:8	-7 str Z ff 4000000000 10	25
+P	%s%s%s	s:a s: s:c	ac	2
+P	%d,%ld,%f,%s	i:1 l:2 d:400C000000000000 s:four	1,2,3.500000,four	17
+P	%c%c%c	i:0 i:65 i:0	\x00A\x00	3
+P	%s	s:		0
+P	%.0s	s:		0
+P	%.1s	s:		0
+P	%.3s	s:		0
+P	%.40s	s:		0
+P	%1s	s:	 	1
+P	%1.0s	s:	 	1
+P	%1.1s	s:	 	1
+P	%1.3s	s:	 	1
+P	%1.40s	s:	 	1
+P	%5s	s:	     	5
+P	%5.0s	s:	     	5
+P	%5.1s	s:	     	5
+P	%5.3s	s:	     	5
+P	%5.40s	s:	     	5
+P	%8s	s:	        	8
+P	%8.0s	s:	        	8
+P	%8.1s	s:	        	8
+P	%8.3s	s:	        	8
+P	%8.40s	s:	        	8
+P	%30s	s:	                              	30
+P	%30.0s	s:	                              	30
+P	%30.1s	s:	                              	30
+P	%30.3s	s:	                              	30
+P	%30.40s	s:	                              	30
+P	%-s	s:		0
+P	%-.0s	s:		0
+P	%-.1s	s:		0
+P	%-.3s	s:		0
+P	%-.40s	s:		0
+P	%-1s	s:	 	1
+P	%-1.0s	s:	 	1
+P	%-1.1s	s:	 	1
+P	%-1.3s	s:	 	1
+P	%-1.40s	s:	 	1
+P	%-5s	s:	     	5
+P	%-5.0s	s:	     	5
+P	%-5.1s	s:	     	5
+P	%-5.3s	s:	     	5
+P	%-5.40s	s:	     	5
+P	%-8s	s:	        	8
+P	%-8.0s	s:	        	8
+P	%-8.1s	s:	        	8
+P	%-8.3s	s:	        	8
+P	%-8.40s	s:	        	8
+P	%-30s	s:	                              	30
+P	%-30.0s	s:	                              	30
+P	%-30.1s	s:	                              	30
+P	%-30.3s	s:	                              	30
+P	%-30.40s	s:	                              	30
+P	%0s	s:		0
+P	%0.0s	s:		0
+P	%0.1s	s:		0
+P	%0.3s	s:		0
+P	%0.40s	s:		0
+P	%01s	s:	 	1
+P	%01.0s	s:	 	1
+P	%01.1s	s:	 	1
+P	%01.3s	s:	 	1
+P	%01.40s	s:	 	1
+P	%05s	s:	     	5
+P	%05.0s	s:	     	5
+P	%05.1s	s:	     	5
+P	%05.3s	s:	     	5
+P	%05.40s	s:	     	5
+P	%08s	s:	        	8
+P	%08.0s	s:	        	8
+P	%08.1s	s:	        	8
+P	%08.3s	s:	        	8
+P	%08.40s	s:	        	8
+P	%030s	s:	                              	30
+P	%030.0s	s:	                              	30
+P	%030.1s	s:	                              	30
+P	%030.3s	s:	                              	30
+P	%030.40s	s:	                              	30
+P	%-0s	s:		0
+P	%-0.0s	s:		0
+P	%-0.1s	s:		0
+P	%-0.3s	s:		0
+P	%-0.40s	s:		0
+P	%-01s	s:	 	1
+P	%-01.0s	s:	 	1
+P	%-01.1s	s:	 	1
+P	%-01.3s	s:	 	1
+P	%-01.40s	s:	 	1
+P	%-05s	s:	     	5
+P	%-05.0s	s:	     	5
+P	%-05.1s	s:	     	5
+P	%-05.3s	s:	     	5
+P	%-05.40s	s:	     	5
+P	%-08s	s:	        	8
+P	%-08.0s	s:	        	8
+P	%-08.1s	s:	        	8
+P	%-08.3s	s:	        	8
+P	%-08.40s	s:	        	8
+P	%-030s	s:	                              	30
+P	%-030.0s	s:	                              	30
+P	%-030.1s	s:	                              	30
+P	%-030.3s	s:	                              	30
+P	%-030.40s	s:	                              	30
+P	%s	s:a	a	1
+P	%.0s	s:a		0
+P	%.1s	s:a	a	1
+P	%.3s	s:a	a	1
+P	%.40s	s:a	a	1
+P	%1s	s:a	a	1
+P	%1.0s	s:a	 	1
+P	%1.1s	s:a	a	1
+P	%1.3s	s:a	a	1
+P	%1.40s	s:a	a	1
+P	%5s	s:a	    a	5
+P	%5.0s	s:a	     	5
+P	%5.1s	s:a	    a	5
+P	%5.3s	s:a	    a	5
+P	%5.40s	s:a	    a	5
+P	%8s	s:a	       a	8
+P	%8.0s	s:a	        	8
+P	%8.1s	s:a	       a	8
+P	%8.3s	s:a	       a	8
+P	%8.40s	s:a	       a	8
+P	%30s	s:a	                             a	30
+P	%30.0s	s:a	                              	30
+P	%30.1s	s:a	                             a	30
+P	%30.3s	s:a	                             a	30
+P	%30.40s	s:a	                             a	30
+P	%-s	s:a	a	1
+P	%-.0s	s:a		0
+P	%-.1s	s:a	a	1
+P	%-.3s	s:a	a	1
+P	%-.40s	s:a	a	1
+P	%-1s	s:a	a	1
+P	%-1.0s	s:a	 	1
+P	%-1.1s	s:a	a	1
+P	%-1.3s	s:a	a	1
+P	%-1.40s	s:a	a	1
+P	%-5s	s:a	a    	5
+P	%-5.0s	s:a	     	5
+P	%-5.1s	s:a	a    	5
+P	%-5.3s	s:a	a    	5
+P	%-5.40s	s:a	a    	5
+P	%-8s	s:a	a       	8
+P	%-8.0s	s:a	        	8
+P	%-8.1s	s:a	a       	8
+P	%-8.3s	s:a	a       	8
+P	%-8.40s	s:a	a       	8
+P	%-30s	s:a	a                             	30
+P	%-30.0s	s:a	                              	30
+P	%-30.1s	s:a	a                             	30
+P	%-30.3s	s:a	a                             	30
+P	%-30.40s	s:a	a                             	30
+P	%0s	s:a	a	1
+P	%0.0s	s:a		0
+P	%0.1s	s:a	a	1
+P	%0.3s	s:a	a	1
+P	%0.40s	s:a	a	1
+P	%01s	s:a	a	1
+P	%01.0s	s:a	 	1
+P	%01.1s	s:a	a	1
+P	%01.3s	s:a	a	1
+P	%01.40s	s:a	a	1
+P	%05s	s:a	    a	5
+P	%05.0s	s:a	     	5
+P	%05.1s	s:a	    a	5
+P	%05.3s	s:a	    a	5
+P	%05.40s	s:a	    a	5
+P	%08s	s:a	       a	8
+P	%08.0s	s:a	        	8
+P	%08.1s	s:a	       a	8
+P	%08.3s	s:a	       a	8
+P	%08.40s	s:a	       a	8
+P	%030s	s:a	                             a	30
+P	%030.0s	s:a	                              	30
+P	%030.1s	s:a	                             a	30
+P	%030.3s	s:a	                             a	30
+P	%030.40s	s:a	                             a	30
+P	%-0s	s:a	a	1
+P	%-0.0s	s:a		0
+P	%-0.1s	s:a	a	1
+P	%-0.3s	s:a	a	1
+P	%-0.40s	s:a	a	1
+P	%-01s	s:a	a	1
+P	%-01.0s	s:a	 	1
+P	%-01.1s	s:a	a	1
+P	%-01.3s	s:a	a	1
+P	%-01.40s	s:a	a	1
+P	%-05s	s:a	a    	5
+P	%-05.0s	s:a	     	5
+P	%-05.1s	s:a	a    	5
+P	%-05.3s	s:a	a    	5
+P	%-05.40s	s:a	a    	5
+P	%-08s	s:a	a       	8
+P	%-08.0s	s:a	        	8
+P	%-08.1s	s:a	a       	8
+P	%-08.3s	s:a	a       	8
+P	%-08.40s	s:a	a       	8
+P	%-030s	s:a	a                             	30
+P	%-030.0s	s:a	                              	30
+P	%-030.1s	s:a	a                             	30
+P	%-030.3s	s:a	a                             	30
+P	%-030.40s	s:a	a                             	30
+P	%s	s:abc	abc	3
+P	%.0s	s:abc		0
+P	%.1s	s:abc	a	1
+P	%.3s	s:abc	abc	3
+P	%.40s	s:abc	abc	3
+P	%1s	s:abc	abc	3
+P	%1.0s	s:abc	 	1
+P	%1.1s	s:abc	a	1
+P	%1.3s	s:abc	abc	3
+P	%1.40s	s:abc	abc	3
+P	%5s	s:abc	  abc	5
+P	%5.0s	s:abc	     	5
+P	%5.1s	s:abc	    a	5
+P	%5.3s	s:abc	  abc	5
+P	%5.40s	s:abc	  abc	5
+P	%8s	s:abc	     abc	8
+P	%8.0s	s:abc	        	8
+P	%8.1s	s:abc	       a	8
+P	%8.3s	s:abc	     abc	8
+P	%8.40s	s:abc	     abc	8
+P	%30s	s:abc	                           abc	30
+P	%30.0s	s:abc	                              	30
+P	%30.1s	s:abc	                             a	30
+P	%30.3s	s:abc	                           abc	30
+P	%30.40s	s:abc	                           abc	30
+P	%-s	s:abc	abc	3
+P	%-.0s	s:abc		0
+P	%-.1s	s:abc	a	1
+P	%-.3s	s:abc	abc	3
+P	%-.40s	s:abc	abc	3
+P	%-1s	s:abc	abc	3
+P	%-1.0s	s:abc	 	1
+P	%-1.1s	s:abc	a	1
+P	%-1.3s	s:abc	abc	3
+P	%-1.40s	s:abc	abc	3
+P	%-5s	s:abc	abc  	5
+P	%-5.0s	s:abc	     	5
+P	%-5.1s	s:abc	a    	5
+P	%-5.3s	s:abc	abc  	5
+P	%-5.40s	s:abc	abc  	5
+P	%-8s	s:abc	abc     	8
+P	%-8.0s	s:abc	        	8
+P	%-8.1s	s:abc	a       	8
+P	%-8.3s	s:abc	abc     	8
+P	%-8.40s	s:abc	abc     	8
+P	%-30s	s:abc	abc                           	30
+P	%-30.0s	s:abc	                              	30
+P	%-30.1s	s:abc	a                             	30
+P	%-30.3s	s:abc	abc                           	30
+P	%-30.40s	s:abc	abc                           	30
+P	%0s	s:abc	abc	3
+P	%0.0s	s:abc		0
+P	%0.1s	s:abc	a	1
+P	%0.3s	s:abc	abc	3
+P	%0.40s	s:abc	abc	3
+P	%01s	s:abc	abc	3
+P	%01.0s	s:abc	 	1
+P	%01.1s	s:abc	a	1
+P	%01.3s	s:abc	abc	3
+P	%01.40s	s:abc	abc	3
+P	%05s	s:abc	  abc	5
+P	%05.0s	s:abc	     	5
+P	%05.1s	s:abc	    a	5
+P	%05.3s	s:abc	  abc	5
+P	%05.40s	s:abc	  abc	5
+P	%08s	s:abc	     abc	8
+P	%08.0s	s:abc	        	8
+P	%08.1s	s:abc	       a	8
+P	%08.3s	s:abc	     abc	8
+P	%08.40s	s:abc	     abc	8
+P	%030s	s:abc	                           abc	30
+P	%030.0s	s:abc	                              	30
+P	%030.1s	s:abc	                             a	30
+P	%030.3s	s:abc	                           abc	30
+P	%030.40s	s:abc	                           abc	30
+P	%-0s	s:abc	abc	3
+P	%-0.0s	s:abc		0
+P	%-0.1s	s:abc	a	1
+P	%-0.3s	s:abc	abc	3
+P	%-0.40s	s:abc	abc	3
+P	%-01s	s:abc	abc	3
+P	%-01.0s	s:abc	 	1
+P	%-01.1s	s:abc	a	1
+P	%-01.3s	s:abc	abc	3
+P	%-01.40s	s:abc	abc	3
+P	%-05s	s:abc	abc  	5
+P	%-05.0s	s:abc	     	5
+P	%-05.1s	s:abc	a    	5
+P	%-05.3s	s:abc	abc  	5
+P	%-05.40s	s:abc	abc  	5
+P	%-08s	s:abc	abc     	8
+P	%-08.0s	s:abc	        	8
+P	%-08.1s	s:abc	a       	8
+P	%-08.3s	s:abc	abc     	8
+P	%-08.40s	s:abc	abc     	8
+P	%-030s	s:abc	abc                           	30
+P	%-030.0s	s:abc	                              	30
+P	%-030.1s	s:abc	a                             	30
+P	%-030.3s	s:abc	abc                           	30
+P	%-030.40s	s:abc	abc                           	30
+P	%s	s:hello\x20world	hello world	11
+P	%.0s	s:hello\x20world		0
+P	%.1s	s:hello\x20world	h	1
+P	%.3s	s:hello\x20world	hel	3
+P	%.40s	s:hello\x20world	hello world	11
+P	%1s	s:hello\x20world	hello world	11
+P	%1.0s	s:hello\x20world	 	1
+P	%1.1s	s:hello\x20world	h	1
+P	%1.3s	s:hello\x20world	hel	3
+P	%1.40s	s:hello\x20world	hello world	11
+P	%5s	s:hello\x20world	hello world	11
+P	%5.0s	s:hello\x20world	     	5
+P	%5.1s	s:hello\x20world	    h	5
+P	%5.3s	s:hello\x20world	  hel	5
+P	%5.40s	s:hello\x20world	hello world	11
+P	%8s	s:hello\x20world	hello world	11
+P	%8.0s	s:hello\x20world	        	8
+P	%8.1s	s:hello\x20world	       h	8
+P	%8.3s	s:hello\x20world	     hel	8
+P	%8.40s	s:hello\x20world	hello world	11
+P	%30s	s:hello\x20world	                   hello world	30
+P	%30.0s	s:hello\x20world	                              	30
+P	%30.1s	s:hello\x20world	                             h	30
+P	%30.3s	s:hello\x20world	                           hel	30
+P	%30.40s	s:hello\x20world	                   hello world	30
+P	%-s	s:hello\x20world	hello world	11
+P	%-.0s	s:hello\x20world		0
+P	%-.1s	s:hello\x20world	h	1
+P	%-.3s	s:hello\x20world	hel	3
+P	%-.40s	s:hello\x20world	hello world	11
+P	%-1s	s:hello\x20world	hello world	11
+P	%-1.0s	s:hello\x20world	 	1
+P	%-1.1s	s:hello\x20world	h	1
+P	%-1.3s	s:hello\x20world	hel	3
+P	%-1.40s	s:hello\x20world	hello world	11
+P	%-5s	s:hello\x20world	hello world	11
+P	%-5.0s	s:hello\x20world	     	5
+P	%-5.1s	s:hello\x20world	h    	5
+P	%-5.3s	s:hello\x20world	hel  	5
+P	%-5.40s	s:hello\x20world	hello world	11
+P	%-8s	s:hello\x20world	hello world	11
+P	%-8.0s	s:hello\x20world	        	8
+P	%-8.1s	s:hello\x20world	h       	8
+P	%-8.3s	s:hello\x20world	hel     	8
+P	%-8.40s	s:hello\x20world	hello world	11
+P	%-30s	s:hello\x20world	hello world                   	30
+P	%-30.0s	s:hello\x20world	                              	30
+P	%-30.1s	s:hello\x20world	h                             	30
+P	%-30.3s	s:hello\x20world	hel                           	30
+P	%-30.40s	s:hello\x20world	hello world                   	30
+P	%0s	s:hello\x20world	hello world	11
+P	%0.0s	s:hello\x20world		0
+P	%0.1s	s:hello\x20world	h	1
+P	%0.3s	s:hello\x20world	hel	3
+P	%0.40s	s:hello\x20world	hello world	11
+P	%01s	s:hello\x20world	hello world	11
+P	%01.0s	s:hello\x20world	 	1
+P	%01.1s	s:hello\x20world	h	1
+P	%01.3s	s:hello\x20world	hel	3
+P	%01.40s	s:hello\x20world	hello world	11
+P	%05s	s:hello\x20world	hello world	11
+P	%05.0s	s:hello\x20world	     	5
+P	%05.1s	s:hello\x20world	    h	5
+P	%05.3s	s:hello\x20world	  hel	5
+P	%05.40s	s:hello\x20world	hello world	11
+P	%08s	s:hello\x20world	hello world	11
+P	%08.0s	s:hello\x20world	        	8
+P	%08.1s	s:hello\x20world	       h	8
+P	%08.3s	s:hello\x20world	     hel	8
+P	%08.40s	s:hello\x20world	hello world	11
+P	%030s	s:hello\x20world	                   hello world	30
+P	%030.0s	s:hello\x20world	                              	30
+P	%030.1s	s:hello\x20world	                             h	30
+P	%030.3s	s:hello\x20world	                           hel	30
+P	%030.40s	s:hello\x20world	                   hello world	30
+P	%-0s	s:hello\x20world	hello world	11
+P	%-0.0s	s:hello\x20world		0
+P	%-0.1s	s:hello\x20world	h	1
+P	%-0.3s	s:hello\x20world	hel	3
+P	%-0.40s	s:hello\x20world	hello world	11
+P	%-01s	s:hello\x20world	hello world	11
+P	%-01.0s	s:hello\x20world	 	1
+P	%-01.1s	s:hello\x20world	h	1
+P	%-01.3s	s:hello\x20world	hel	3
+P	%-01.40s	s:hello\x20world	hello world	11
+P	%-05s	s:hello\x20world	hello world	11
+P	%-05.0s	s:hello\x20world	     	5
+P	%-05.1s	s:hello\x20world	h    	5
+P	%-05.3s	s:hello\x20world	hel  	5
+P	%-05.40s	s:hello\x20world	hello world	11
+P	%-08s	s:hello\x20world	hello world	11
+P	%-08.0s	s:hello\x20world	        	8
+P	%-08.1s	s:hello\x20world	h       	8
+P	%-08.3s	s:hello\x20world	hel     	8
+P	%-08.40s	s:hello\x20world	hello world	11
+P	%-030s	s:hello\x20world	hello world                   	30
+P	%-030.0s	s:hello\x20world	                              	30
+P	%-030.1s	s:hello\x20world	h                             	30
+P	%-030.3s	s:hello\x20world	hel                           	30
+P	%-030.40s	s:hello\x20world	hello world                   	30
+P	%s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%.0s	s:with\x20\x20two\x20spaces		0
+P	%.1s	s:with\x20\x20two\x20spaces	w	1
+P	%.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%1s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%1.0s	s:with\x20\x20two\x20spaces	 	1
+P	%1.1s	s:with\x20\x20two\x20spaces	w	1
+P	%1.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%1.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%5s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%5.0s	s:with\x20\x20two\x20spaces	     	5
+P	%5.1s	s:with\x20\x20two\x20spaces	    w	5
+P	%5.3s	s:with\x20\x20two\x20spaces	  wit	5
+P	%5.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%8s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%8.0s	s:with\x20\x20two\x20spaces	        	8
+P	%8.1s	s:with\x20\x20two\x20spaces	       w	8
+P	%8.3s	s:with\x20\x20two\x20spaces	     wit	8
+P	%8.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%30s	s:with\x20\x20two\x20spaces	              with  two spaces	30
+P	%30.0s	s:with\x20\x20two\x20spaces	                              	30
+P	%30.1s	s:with\x20\x20two\x20spaces	                             w	30
+P	%30.3s	s:with\x20\x20two\x20spaces	                           wit	30
+P	%30.40s	s:with\x20\x20two\x20spaces	              with  two spaces	30
+P	%-s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-.0s	s:with\x20\x20two\x20spaces		0
+P	%-.1s	s:with\x20\x20two\x20spaces	w	1
+P	%-.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%-.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-1s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-1.0s	s:with\x20\x20two\x20spaces	 	1
+P	%-1.1s	s:with\x20\x20two\x20spaces	w	1
+P	%-1.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%-1.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-5s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-5.0s	s:with\x20\x20two\x20spaces	     	5
+P	%-5.1s	s:with\x20\x20two\x20spaces	w    	5
+P	%-5.3s	s:with\x20\x20two\x20spaces	wit  	5
+P	%-5.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-8s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-8.0s	s:with\x20\x20two\x20spaces	        	8
+P	%-8.1s	s:with\x20\x20two\x20spaces	w       	8
+P	%-8.3s	s:with\x20\x20two\x20spaces	wit     	8
+P	%-8.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-30s	s:with\x20\x20two\x20spaces	with  two spaces              	30
+P	%-30.0s	s:with\x20\x20two\x20spaces	                              	30
+P	%-30.1s	s:with\x20\x20two\x20spaces	w                             	30
+P	%-30.3s	s:with\x20\x20two\x20spaces	wit                           	30
+P	%-30.40s	s:with\x20\x20two\x20spaces	with  two spaces              	30
+P	%0s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%0.0s	s:with\x20\x20two\x20spaces		0
+P	%0.1s	s:with\x20\x20two\x20spaces	w	1
+P	%0.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%0.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%01s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%01.0s	s:with\x20\x20two\x20spaces	 	1
+P	%01.1s	s:with\x20\x20two\x20spaces	w	1
+P	%01.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%01.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%05s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%05.0s	s:with\x20\x20two\x20spaces	     	5
+P	%05.1s	s:with\x20\x20two\x20spaces	    w	5
+P	%05.3s	s:with\x20\x20two\x20spaces	  wit	5
+P	%05.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%08s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%08.0s	s:with\x20\x20two\x20spaces	        	8
+P	%08.1s	s:with\x20\x20two\x20spaces	       w	8
+P	%08.3s	s:with\x20\x20two\x20spaces	     wit	8
+P	%08.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%030s	s:with\x20\x20two\x20spaces	              with  two spaces	30
+P	%030.0s	s:with\x20\x20two\x20spaces	                              	30
+P	%030.1s	s:with\x20\x20two\x20spaces	                             w	30
+P	%030.3s	s:with\x20\x20two\x20spaces	                           wit	30
+P	%030.40s	s:with\x20\x20two\x20spaces	              with  two spaces	30
+P	%-0s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-0.0s	s:with\x20\x20two\x20spaces		0
+P	%-0.1s	s:with\x20\x20two\x20spaces	w	1
+P	%-0.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%-0.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-01s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-01.0s	s:with\x20\x20two\x20spaces	 	1
+P	%-01.1s	s:with\x20\x20two\x20spaces	w	1
+P	%-01.3s	s:with\x20\x20two\x20spaces	wit	3
+P	%-01.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-05s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-05.0s	s:with\x20\x20two\x20spaces	     	5
+P	%-05.1s	s:with\x20\x20two\x20spaces	w    	5
+P	%-05.3s	s:with\x20\x20two\x20spaces	wit  	5
+P	%-05.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-08s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-08.0s	s:with\x20\x20two\x20spaces	        	8
+P	%-08.1s	s:with\x20\x20two\x20spaces	w       	8
+P	%-08.3s	s:with\x20\x20two\x20spaces	wit     	8
+P	%-08.40s	s:with\x20\x20two\x20spaces	with  two spaces	16
+P	%-030s	s:with\x20\x20two\x20spaces	with  two spaces              	30
+P	%-030.0s	s:with\x20\x20two\x20spaces	                              	30
+P	%-030.1s	s:with\x20\x20two\x20spaces	w                             	30
+P	%-030.3s	s:with\x20\x20two\x20spaces	wit                           	30
+P	%-030.40s	s:with\x20\x20two\x20spaces	with  two spaces              	30
+P	%s	s:tab\there	tab\there	8
+P	%.0s	s:tab\there		0
+P	%.1s	s:tab\there	t	1
+P	%.3s	s:tab\there	tab	3
+P	%.40s	s:tab\there	tab\there	8
+P	%1s	s:tab\there	tab\there	8
+P	%1.0s	s:tab\there	 	1
+P	%1.1s	s:tab\there	t	1
+P	%1.3s	s:tab\there	tab	3
+P	%1.40s	s:tab\there	tab\there	8
+P	%5s	s:tab\there	tab\there	8
+P	%5.0s	s:tab\there	     	5
+P	%5.1s	s:tab\there	    t	5
+P	%5.3s	s:tab\there	  tab	5
+P	%5.40s	s:tab\there	tab\there	8
+P	%8s	s:tab\there	tab\there	8
+P	%8.0s	s:tab\there	        	8
+P	%8.1s	s:tab\there	       t	8
+P	%8.3s	s:tab\there	     tab	8
+P	%8.40s	s:tab\there	tab\there	8
+P	%30s	s:tab\there	                      tab\there	30
+P	%30.0s	s:tab\there	                              	30
+P	%30.1s	s:tab\there	                             t	30
+P	%30.3s	s:tab\there	                           tab	30
+P	%30.40s	s:tab\there	                      tab\there	30
+P	%-s	s:tab\there	tab\there	8
+P	%-.0s	s:tab\there		0
+P	%-.1s	s:tab\there	t	1
+P	%-.3s	s:tab\there	tab	3
+P	%-.40s	s:tab\there	tab\there	8
+P	%-1s	s:tab\there	tab\there	8
+P	%-1.0s	s:tab\there	 	1
+P	%-1.1s	s:tab\there	t	1
+P	%-1.3s	s:tab\there	tab	3
+P	%-1.40s	s:tab\there	tab\there	8
+P	%-5s	s:tab\there	tab\there	8
+P	%-5.0s	s:tab\there	     	5
+P	%-5.1s	s:tab\there	t    	5
+P	%-5.3s	s:tab\there	tab  	5
+P	%-5.40s	s:tab\there	tab\there	8
+P	%-8s	s:tab\there	tab\there	8
+P	%-8.0s	s:tab\there	        	8
+P	%-8.1s	s:tab\there	t       	8
+P	%-8.3s	s:tab\there	tab     	8
+P	%-8.40s	s:tab\there	tab\there	8
+P	%-30s	s:tab\there	tab\there                      	30
+P	%-30.0s	s:tab\there	                              	30
+P	%-30.1s	s:tab\there	t                             	30
+P	%-30.3s	s:tab\there	tab                           	30
+P	%-30.40s	s:tab\there	tab\there                      	30
+P	%0s	s:tab\there	tab\there	8
+P	%0.0s	s:tab\there		0
+P	%0.1s	s:tab\there	t	1
+P	%0.3s	s:tab\there	tab	3
+P	%0.40s	s:tab\there	tab\there	8
+P	%01s	s:tab\there	tab\there	8
+P	%01.0s	s:tab\there	 	1
+P	%01.1s	s:tab\there	t	1
+P	%01.3s	s:tab\there	tab	3
+P	%01.40s	s:tab\there	tab\there	8
+P	%05s	s:tab\there	tab\there	8
+P	%05.0s	s:tab\there	     	5
+P	%05.1s	s:tab\there	    t	5
+P	%05.3s	s:tab\there	  tab	5
+P	%05.40s	s:tab\there	tab\there	8
+P	%08s	s:tab\there	tab\there	8
+P	%08.0s	s:tab\there	        	8
+P	%08.1s	s:tab\there	       t	8
+P	%08.3s	s:tab\there	     tab	8
+P	%08.40s	s:tab\there	tab\there	8
+P	%030s	s:tab\there	                      tab\there	30
+P	%030.0s	s:tab\there	                              	30
+P	%030.1s	s:tab\there	                             t	30
+P	%030.3s	s:tab\there	                           tab	30
+P	%030.40s	s:tab\there	                      tab\there	30
+P	%-0s	s:tab\there	tab\there	8
+P	%-0.0s	s:tab\there		0
+P	%-0.1s	s:tab\there	t	1
+P	%-0.3s	s:tab\there	tab	3
+P	%-0.40s	s:tab\there	tab\there	8
+P	%-01s	s:tab\there	tab\there	8
+P	%-01.0s	s:tab\there	 	1
+P	%-01.1s	s:tab\there	t	1
+P	%-01.3s	s:tab\there	tab	3
+P	%-01.40s	s:tab\there	tab\there	8
+P	%-05s	s:tab\there	tab\there	8
+P	%-05.0s	s:tab\there	     	5
+P	%-05.1s	s:tab\there	t    	5
+P	%-05.3s	s:tab\there	tab  	5
+P	%-05.40s	s:tab\there	tab\there	8
+P	%-08s	s:tab\there	tab\there	8
+P	%-08.0s	s:tab\there	        	8
+P	%-08.1s	s:tab\there	t       	8
+P	%-08.3s	s:tab\there	tab     	8
+P	%-08.40s	s:tab\there	tab\there	8
+P	%-030s	s:tab\there	tab\there                      	30
+P	%-030.0s	s:tab\there	                              	30
+P	%-030.1s	s:tab\there	t                             	30
+P	%-030.3s	s:tab\there	tab                           	30
+P	%-030.40s	s:tab\there	tab\there                      	30
+P	%s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		0
+P	%.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%1.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	 	1
+P	%1.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%1.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%1.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%5s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%5.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     	5
+P	%5.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	    x	5
+P	%5.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	  xxx	5
+P	%5.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%8s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%8.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	        	8
+P	%8.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	       x	8
+P	%8.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     xxx	8
+P	%8.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%30s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%30.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                              	30
+P	%30.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                             x	30
+P	%30.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                           xxx	30
+P	%30.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		0
+P	%-.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%-.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%-.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-1.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	 	1
+P	%-1.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%-1.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%-1.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-5s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-5.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     	5
+P	%-5.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x    	5
+P	%-5.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx  	5
+P	%-5.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-8s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-8.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	        	8
+P	%-8.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x       	8
+P	%-8.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx     	8
+P	%-8.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-30s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-30.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                              	30
+P	%-30.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x                             	30
+P	%-30.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx                           	30
+P	%-30.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%0.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		0
+P	%0.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%0.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%0.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%01s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%01.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	 	1
+P	%01.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%01.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%01.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%05s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%05.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     	5
+P	%05.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	    x	5
+P	%05.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	  xxx	5
+P	%05.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%08s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%08.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	        	8
+P	%08.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	       x	8
+P	%08.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     xxx	8
+P	%08.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%030s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%030.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                              	30
+P	%030.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                             x	30
+P	%030.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                           xxx	30
+P	%030.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-0.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx		0
+P	%-0.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%-0.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%-0.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-01s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-01.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	 	1
+P	%-01.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x	1
+P	%-01.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx	3
+P	%-01.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-05s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-05.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	     	5
+P	%-05.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x    	5
+P	%-05.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx  	5
+P	%-05.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-08s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-08.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	        	8
+P	%-08.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x       	8
+P	%-08.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx     	8
+P	%-08.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-030s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%-030.0s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	                              	30
+P	%-030.1s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	x                             	30
+P	%-030.3s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxx                           	30
+P	%-030.40s	s:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	40
+P	%s	s:\xE9\xFF	\xE9\xFF	2
+P	%.0s	s:\xE9\xFF		0
+P	%.1s	s:\xE9\xFF	\xE9	1
+P	%.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%1s	s:\xE9\xFF	\xE9\xFF	2
+P	%1.0s	s:\xE9\xFF	 	1
+P	%1.1s	s:\xE9\xFF	\xE9	1
+P	%1.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%1.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%5s	s:\xE9\xFF	   \xE9\xFF	5
+P	%5.0s	s:\xE9\xFF	     	5
+P	%5.1s	s:\xE9\xFF	    \xE9	5
+P	%5.3s	s:\xE9\xFF	   \xE9\xFF	5
+P	%5.40s	s:\xE9\xFF	   \xE9\xFF	5
+P	%8s	s:\xE9\xFF	      \xE9\xFF	8
+P	%8.0s	s:\xE9\xFF	        	8
+P	%8.1s	s:\xE9\xFF	       \xE9	8
+P	%8.3s	s:\xE9\xFF	      \xE9\xFF	8
+P	%8.40s	s:\xE9\xFF	      \xE9\xFF	8
+P	%30s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%30.0s	s:\xE9\xFF	                              	30
+P	%30.1s	s:\xE9\xFF	                             \xE9	30
+P	%30.3s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%30.40s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%-s	s:\xE9\xFF	\xE9\xFF	2
+P	%-.0s	s:\xE9\xFF		0
+P	%-.1s	s:\xE9\xFF	\xE9	1
+P	%-.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%-.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%-1s	s:\xE9\xFF	\xE9\xFF	2
+P	%-1.0s	s:\xE9\xFF	 	1
+P	%-1.1s	s:\xE9\xFF	\xE9	1
+P	%-1.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%-1.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%-5s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-5.0s	s:\xE9\xFF	     	5
+P	%-5.1s	s:\xE9\xFF	\xE9    	5
+P	%-5.3s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-5.40s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-8s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-8.0s	s:\xE9\xFF	        	8
+P	%-8.1s	s:\xE9\xFF	\xE9       	8
+P	%-8.3s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-8.40s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-30s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%-30.0s	s:\xE9\xFF	                              	30
+P	%-30.1s	s:\xE9\xFF	\xE9                             	30
+P	%-30.3s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%-30.40s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%0s	s:\xE9\xFF	\xE9\xFF	2
+P	%0.0s	s:\xE9\xFF		0
+P	%0.1s	s:\xE9\xFF	\xE9	1
+P	%0.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%0.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%01s	s:\xE9\xFF	\xE9\xFF	2
+P	%01.0s	s:\xE9\xFF	 	1
+P	%01.1s	s:\xE9\xFF	\xE9	1
+P	%01.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%01.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%05s	s:\xE9\xFF	   \xE9\xFF	5
+P	%05.0s	s:\xE9\xFF	     	5
+P	%05.1s	s:\xE9\xFF	    \xE9	5
+P	%05.3s	s:\xE9\xFF	   \xE9\xFF	5
+P	%05.40s	s:\xE9\xFF	   \xE9\xFF	5
+P	%08s	s:\xE9\xFF	      \xE9\xFF	8
+P	%08.0s	s:\xE9\xFF	        	8
+P	%08.1s	s:\xE9\xFF	       \xE9	8
+P	%08.3s	s:\xE9\xFF	      \xE9\xFF	8
+P	%08.40s	s:\xE9\xFF	      \xE9\xFF	8
+P	%030s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%030.0s	s:\xE9\xFF	                              	30
+P	%030.1s	s:\xE9\xFF	                             \xE9	30
+P	%030.3s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%030.40s	s:\xE9\xFF	                            \xE9\xFF	30
+P	%-0s	s:\xE9\xFF	\xE9\xFF	2
+P	%-0.0s	s:\xE9\xFF		0
+P	%-0.1s	s:\xE9\xFF	\xE9	1
+P	%-0.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%-0.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%-01s	s:\xE9\xFF	\xE9\xFF	2
+P	%-01.0s	s:\xE9\xFF	 	1
+P	%-01.1s	s:\xE9\xFF	\xE9	1
+P	%-01.3s	s:\xE9\xFF	\xE9\xFF	2
+P	%-01.40s	s:\xE9\xFF	\xE9\xFF	2
+P	%-05s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-05.0s	s:\xE9\xFF	     	5
+P	%-05.1s	s:\xE9\xFF	\xE9    	5
+P	%-05.3s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-05.40s	s:\xE9\xFF	\xE9\xFF   	5
+P	%-08s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-08.0s	s:\xE9\xFF	        	8
+P	%-08.1s	s:\xE9\xFF	\xE9       	8
+P	%-08.3s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-08.40s	s:\xE9\xFF	\xE9\xFF      	8
+P	%-030s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%-030.0s	s:\xE9\xFF	                              	30
+P	%-030.1s	s:\xE9\xFF	\xE9                             	30
+P	%-030.3s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%-030.40s	s:\xE9\xFF	\xE9\xFF                            	30
+P	%s	S:	(null)	6
+P	%.6s	S:	(null)	6
+P	%.40s	S:	(null)	6
+P	%1s	S:	(null)	6
+P	%1.6s	S:	(null)	6
+P	%1.40s	S:	(null)	6
+P	%8s	S:	  (null)	8
+P	%8.6s	S:	  (null)	8
+P	%8.40s	S:	  (null)	8
+P	%30s	S:	                        (null)	30
+P	%30.6s	S:	                        (null)	30
+P	%30.40s	S:	                        (null)	30
+P	%-s	S:	(null)	6
+P	%-.6s	S:	(null)	6
+P	%-.40s	S:	(null)	6
+P	%-1s	S:	(null)	6
+P	%-1.6s	S:	(null)	6
+P	%-1.40s	S:	(null)	6
+P	%-8s	S:	(null)  	8
+P	%-8.6s	S:	(null)  	8
+P	%-8.40s	S:	(null)  	8
+P	%-30s	S:	(null)                        	30
+P	%-30.6s	S:	(null)                        	30
+P	%-30.40s	S:	(null)                        	30
+P	x%sy%sz	S: s:mid	x(null)ymidz	12
+P	%.0s	S:		0
+P	%-.0s	S:		0
+P	%8.0s	S:	        	8
+P	%-8.0s	S:	        	8
+P	%.1s	S:	(	1
+P	%-.1s	S:	(	1
+P	%8.1s	S:	       (	8
+P	%-8.1s	S:	(       	8
+P	%.3s	S:	(nu	3
+P	%-.3s	S:	(nu	3
+P	%8.3s	S:	     (nu	8
+P	%-8.3s	S:	(nu     	8
+P	%.5s	S:	(null	5
+P	%-.5s	S:	(null	5
+P	%8.5s	S:	   (null	8
+P	%-8.5s	S:	(null   	8
+P	[%.3s][%.0s][%8.2s]	S: S: S:	[(nu][][      (n]	17
+P	%lf|%.3lf|%10.1lf	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590|-2.500|10000000000000000000000.0	41
+P	%le|%.3le|%10.1le	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590e+00|-2.500e+00|   1.0e+22	34
+P	%lg|%.3lg|%10.1lg	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1e+22	23
+P	%lE|%.3lE|%10.1lE	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590E+00|-2.500E+00|   1.0E+22	34
+P	%lG|%.3lG|%10.1lG	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1E+22	23
+P	%hf|%.3hf|%10.1hf	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590|-2.500|10000000000000000000000.0	41
+P	%he|%.3he|%10.1he	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590e+00|-2.500e+00|   1.0e+22	34
+P	%hg|%.3hg|%10.1hg	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1e+22	23
+P	%hE|%.3hE|%10.1hE	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590E+00|-2.500E+00|   1.0E+22	34
+P	%hG|%.3hG|%10.1hG	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1E+22	23
+P	%Lf|%.3Lf|%10.1Lf	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590|-2.500|10000000000000000000000.0	41
+P	%Le|%.3Le|%10.1Le	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590e+00|-2.500e+00|   1.0e+22	34
+P	%Lg|%.3Lg|%10.1Lg	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1e+22	23
+P	%LE|%.3LE|%10.1LE	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.141590E+00|-2.500E+00|   1.0E+22	34
+P	%LG|%.3LG|%10.1LG	d:400921F9F01B866E d:C004000000000000 d:4480F0CF064DD592	3.14159|-2.5|     1E+22	23
+P	%Ld|%5Ld	i:42 i:65535	42|   -1	8
+P	%Li|%5Li	i:42 i:65535	42|   -1	8
+P	%Lu|%5Lu	i:42 i:65535	42|65535	8
+P	%Lx|%5Lx	i:42 i:65535	2a| ffff	8
+P	%LX|%5LX	i:42 i:65535	2A| FFFF	8
+P	%Lo|%5Lo	i:42 i:65535	52|177777	9
+P	%hs|%-6.2hs|%hc|%3hc	s:string s:xyz i:65 i:66	string|xy    |A|  B	19
+P	%Ls|%-6.2Ls|%Lc|%3Lc	s:string s:xyz i:65 i:66	string|xy    |A|  B	19
+P	%c	i:0	\x00	1
+P	%1c	i:0	\x00	1
+P	%4c	i:0	   \x00	4
+P	%-c	i:0	\x00	1
+P	%-1c	i:0	\x00	1
+P	%-4c	i:0	\x00   	4
+P	%0c	i:0	\x00	1
+P	%01c	i:0	\x00	1
+P	%04c	i:0	   \x00	4
+P	%c	i:1	\x01	1
+P	%1c	i:1	\x01	1
+P	%4c	i:1	   \x01	4
+P	%-c	i:1	\x01	1
+P	%-1c	i:1	\x01	1
+P	%-4c	i:1	\x01   	4
+P	%0c	i:1	\x01	1
+P	%01c	i:1	\x01	1
+P	%04c	i:1	   \x01	4
+P	%c	i:7	\x07	1
+P	%1c	i:7	\x07	1
+P	%4c	i:7	   \x07	4
+P	%-c	i:7	\x07	1
+P	%-1c	i:7	\x07	1
+P	%-4c	i:7	\x07   	4
+P	%0c	i:7	\x07	1
+P	%01c	i:7	\x07	1
+P	%04c	i:7	   \x07	4
+P	%c	i:9	\t	1
+P	%1c	i:9	\t	1
+P	%4c	i:9	   \t	4
+P	%-c	i:9	\t	1
+P	%-1c	i:9	\t	1
+P	%-4c	i:9	\t   	4
+P	%0c	i:9	\t	1
+P	%01c	i:9	\t	1
+P	%04c	i:9	   \t	4
+P	%c	i:10	\n	1
+P	%1c	i:10	\n	1
+P	%4c	i:10	   \n	4
+P	%-c	i:10	\n	1
+P	%-1c	i:10	\n	1
+P	%-4c	i:10	\n   	4
+P	%0c	i:10	\n	1
+P	%01c	i:10	\n	1
+P	%04c	i:10	   \n	4
+P	%c	i:13	\r	1
+P	%1c	i:13	\r	1
+P	%4c	i:13	   \r	4
+P	%-c	i:13	\r	1
+P	%-1c	i:13	\r	1
+P	%-4c	i:13	\r   	4
+P	%0c	i:13	\r	1
+P	%01c	i:13	\r	1
+P	%04c	i:13	   \r	4
+P	%c	i:26	\x1A	1
+P	%1c	i:26	\x1A	1
+P	%4c	i:26	   \x1A	4
+P	%-c	i:26	\x1A	1
+P	%-1c	i:26	\x1A	1
+P	%-4c	i:26	\x1A   	4
+P	%0c	i:26	\x1A	1
+P	%01c	i:26	\x1A	1
+P	%04c	i:26	   \x1A	4
+P	%c	i:31	\x1F	1
+P	%1c	i:31	\x1F	1
+P	%4c	i:31	   \x1F	4
+P	%-c	i:31	\x1F	1
+P	%-1c	i:31	\x1F	1
+P	%-4c	i:31	\x1F   	4
+P	%0c	i:31	\x1F	1
+P	%01c	i:31	\x1F	1
+P	%04c	i:31	   \x1F	4
+P	%c	i:32	 	1
+P	%1c	i:32	 	1
+P	%4c	i:32	    	4
+P	%-c	i:32	 	1
+P	%-1c	i:32	 	1
+P	%-4c	i:32	    	4
+P	%0c	i:32	 	1
+P	%01c	i:32	 	1
+P	%04c	i:32	    	4
+P	%c	i:37	%	1
+P	%1c	i:37	%	1
+P	%4c	i:37	   %	4
+P	%-c	i:37	%	1
+P	%-1c	i:37	%	1
+P	%-4c	i:37	%   	4
+P	%0c	i:37	%	1
+P	%01c	i:37	%	1
+P	%04c	i:37	   %	4
+P	%c	i:65	A	1
+P	%1c	i:65	A	1
+P	%4c	i:65	   A	4
+P	%-c	i:65	A	1
+P	%-1c	i:65	A	1
+P	%-4c	i:65	A   	4
+P	%0c	i:65	A	1
+P	%01c	i:65	A	1
+P	%04c	i:65	   A	4
+P	%c	i:97	a	1
+P	%1c	i:97	a	1
+P	%4c	i:97	   a	4
+P	%-c	i:97	a	1
+P	%-1c	i:97	a	1
+P	%-4c	i:97	a   	4
+P	%0c	i:97	a	1
+P	%01c	i:97	a	1
+P	%04c	i:97	   a	4
+P	%c	i:126	~	1
+P	%1c	i:126	~	1
+P	%4c	i:126	   ~	4
+P	%-c	i:126	~	1
+P	%-1c	i:126	~	1
+P	%-4c	i:126	~   	4
+P	%0c	i:126	~	1
+P	%01c	i:126	~	1
+P	%04c	i:126	   ~	4
+P	%c	i:127	\x7F	1
+P	%1c	i:127	\x7F	1
+P	%4c	i:127	   \x7F	4
+P	%-c	i:127	\x7F	1
+P	%-1c	i:127	\x7F	1
+P	%-4c	i:127	\x7F   	4
+P	%0c	i:127	\x7F	1
+P	%01c	i:127	\x7F	1
+P	%04c	i:127	   \x7F	4
+P	%c	i:128	\x80	1
+P	%1c	i:128	\x80	1
+P	%4c	i:128	   \x80	4
+P	%-c	i:128	\x80	1
+P	%-1c	i:128	\x80	1
+P	%-4c	i:128	\x80   	4
+P	%0c	i:128	\x80	1
+P	%01c	i:128	\x80	1
+P	%04c	i:128	   \x80	4
+P	%c	i:200	\xC8	1
+P	%1c	i:200	\xC8	1
+P	%4c	i:200	   \xC8	4
+P	%-c	i:200	\xC8	1
+P	%-1c	i:200	\xC8	1
+P	%-4c	i:200	\xC8   	4
+P	%0c	i:200	\xC8	1
+P	%01c	i:200	\xC8	1
+P	%04c	i:200	   \xC8	4
+P	%c	i:255	\xFF	1
+P	%1c	i:255	\xFF	1
+P	%4c	i:255	   \xFF	4
+P	%-c	i:255	\xFF	1
+P	%-1c	i:255	\xFF	1
+P	%-4c	i:255	\xFF   	4
+P	%0c	i:255	\xFF	1
+P	%01c	i:255	\xFF	1
+P	%04c	i:255	   \xFF	4
+P	%c	i:256	\x00	1
+P	%1c	i:256	\x00	1
+P	%4c	i:256	   \x00	4
+P	%-c	i:256	\x00	1
+P	%-1c	i:256	\x00	1
+P	%-4c	i:256	\x00   	4
+P	%0c	i:256	\x00	1
+P	%01c	i:256	\x00	1
+P	%04c	i:256	   \x00	4
+P	%c	i:321	A	1
+P	%1c	i:321	A	1
+P	%4c	i:321	   A	4
+P	%-c	i:321	A	1
+P	%-1c	i:321	A	1
+P	%-4c	i:321	A   	4
+P	%0c	i:321	A	1
+P	%01c	i:321	A	1
+P	%04c	i:321	   A	4
+P	%c	i:65535	\xFF	1
+P	%1c	i:65535	\xFF	1
+P	%4c	i:65535	   \xFF	4
+P	%-c	i:65535	\xFF	1
+P	%-1c	i:65535	\xFF	1
+P	%-4c	i:65535	\xFF   	4
+P	%0c	i:65535	\xFF	1
+P	%01c	i:65535	\xFF	1
+P	%04c	i:65535	   \xFF	4
+P	%c	i:-1	\xFF	1
+P	%1c	i:-1	\xFF	1
+P	%4c	i:-1	   \xFF	4
+P	%-c	i:-1	\xFF	1
+P	%-1c	i:-1	\xFF	1
+P	%-4c	i:-1	\xFF   	4
+P	%0c	i:-1	\xFF	1
+P	%01c	i:-1	\xFF	1
+P	%04c	i:-1	   \xFF	4
+P	%c	i:-127	\x81	1
+P	%1c	i:-127	\x81	1
+P	%4c	i:-127	   \x81	4
+P	%-c	i:-127	\x81	1
+P	%-1c	i:-127	\x81	1
+P	%-4c	i:-127	\x81   	4
+P	%0c	i:-127	\x81	1
+P	%01c	i:-127	\x81	1
+P	%04c	i:-127	   \x81	4
+P	%c	i:-128	\x80	1
+P	%1c	i:-128	\x80	1
+P	%4c	i:-128	   \x80	4
+P	%-c	i:-128	\x80	1
+P	%-1c	i:-128	\x80	1
+P	%-4c	i:-128	\x80   	4
+P	%0c	i:-128	\x80	1
+P	%01c	i:-128	\x80	1
+P	%04c	i:-128	   \x80	4
+P	%n		%n	2
+P	a%nb		a%nb	4
+P	%p		%p	2
+P	%a		%a	2
+P	%A		%A	2
+P	%F		%F	2
+P	%ls		%ls	3
+P	%lc		%lc	3
+P	%lld		%lld	4
+P	%lli		%lli	4
+P	%llu		%llu	4
+P	%hhd		%hhd	4
+P	%hld		%hld	4
+P	%lhd		%lhd	4
+P	%Lld		%Lld	4
+P	%hh		%hh	3
+P	%ll		%ll	3
+P	%lL		%lL	3
+P	%z		%z	2
+P	%y%d	i:9	%y9	3
+P	%5z%d	i:9	%5z9	4
+P	%-*z%d	i:9	%-*z9	5
+P	%*5d		%*5d	4
+P	%.*5d		%.*5d	5
+P	%**d		%**d	4
+P	%.5.3d		%.5.3d	6
+P	%5-d		%5-d	4
+P	%.5 d		%.5 d	5
+P	% %		% %	3
+P	%5%		%5%	3
+P	%-%		%-%	3
+P	%.1%		%.1%	4
+P	%l%		%l%	3
+P	%		%	1
+P	abc%		abc%	4
+P	%5		%5	2
+P	%-		%-	2
+P	%.		%.	2
+P	%.5		%.5	3
+P	%*		%*	2
+P	%.*		%.*	3
+P	%l		%l	2
+P	%h		%h	2
+P	%L		%L	2
+P	%-5.3		%-5.3	5
+P	%q%q		%q%q	4
+P	%[x]		%[x]	4
+P	%@		%@	2
+P	100%		100%	4
+P	%d%	i:4	4%	2
+P	%d%n%d	i:1 i:2	1%n2	4
+P	%s%n	s:ab	ab%n	4
+P	%i%lli%i	i:1 i:3	1%lli3	6
+P	%ld%lld%ld	l:1 l:3	1%lld3	6
+P	%e%p%e	d:3FF8000000000000 d:4004000000000000	1.500000e+00%p2.500000e+00	26
+P	%0*d%*z	i:5 i:3	00003%*z	8
+P	%*c%c	i:3 i:65 i:66	  AB	4

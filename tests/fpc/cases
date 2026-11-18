@@ -1,0 +1,15 @@
+# floating-point helper tests (tests/run-dos): NAME STATUS PROGRAM [ARGUMENTS]
+# Each program prints only failing rows and a final "ok" (see README.txt).
+
+add     0 arith add
+sub     0 arith sub
+mul     0 arith mul
+div     0 arith div
+neg     0 arith neg
+cmp     0 compare
+toint   0 toint
+fromint 0 fromint
+d2f     0 tofloat d2f
+f2d     0 tofloat f2d
+regs    0 regs
+purity  0 purity

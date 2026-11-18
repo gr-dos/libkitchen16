@@ -1,0 +1,8 @@
+# The stack each function uses, measured on the real library (lib/stack.h).
+# A program fails when a function is over its limit in the spec; its output
+# (-v) is the table of figures, kept in NAME.OUT and recorded in
+# docs/DESIGN.md, section 8.
+fpc     0 stk_fpc -v
+math    0 stk_math -v
+conv    0 stk_conv -v
+io      0 stk_io -v

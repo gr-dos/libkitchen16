@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Check that adding an unused member to the library changes no program
+# (DESIGN.md, section 5): each X.EXE under DIR (except PLUSDIR's) must be
+# byte-identical to PLUSDIR/X.EXE, linked against the library plus
+# tests/plus/unused.c, and link the same members.
+#
+# usage: tests/check-selective DIR PLUSDIR
+
+set -eu
+
+dir=$1
+plus=$2
+status=0
+for exe in $(find "$dir" -name '*.EXE' -not -path "$plus/*" | sort); do
+  name=${exe#"$dir"/}
+  base=${name%.EXE}
+  if cmp -s "$exe" "$plus/$name" && cmp -s "$dir/$base.MEMBERS" "$plus/$base.MEMBERS"; then
+    echo "ok $base unchanged by an unused member"
+  else
+    echo "not ok $base changed by an unused member"
+    status=1
+  fi
+done
+exit $status

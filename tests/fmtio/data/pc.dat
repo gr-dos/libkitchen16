@@ -1,0 +1,28 @@
+P	%d	i:12345	12345	5
+P	%5d|%-5d|%05d	i:42 i:42 i:42	   42|42   |00042	17
+P	%+d % d %+d	i:5 i:5 i:-5	+5  5 -5	8
+P	%x %X %#x %#o	i:48879 i:48879 i:255 i:8	beef BEEF 0xff 010	18
+P	%ld %lu %lx	l:-2147483648 l:4294967295 l:3735928559	-2147483648 4294967295 deadbeef	31
+P	%s and %s	s:one s:two	one and two	11
+P	[%10s][%-10s][%.2s]	s:abc s:abc s:abc	[       abc][abc       ][ab]	28
+P	%c%c%c	i:72 i:105 i:33	Hi!	3
+P	%f %e %g	d:400921F9F01B866E d:400921F9F01B866E d:400921F9F01B866E	3.141590 3.141590e+00 3.14159	29
+P	%.0f %.1f %.2f	d:4004000000000000 d:3FD0000000000000 d:3FF0147AE147AE14	2 0.2 1.00	10
+P	%.20g	d:3FB999999999999A	0.10000000000000000555	22
+P	%g %g %g	d:3EE4F8B588E368F1 d:40F86A0000000000 d:412E848000000000	1e-05 100000 1e+06	18
+P	%f %f	d:7FF0000000000000 d:FFF8000000000000	inf -nan	8
+P	%.30f	d:3FF0000000000000	1.000000000000000000000000000000	32
+P	%.400f	d:0000000000000001	0.0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000049406564584124654417656879286822137236505980261432476442558568250067550727021	402
+P	%.0f	d:7FEFFFFFFFFFFFFF	179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368	309
+P	%n %lld %p %5%		%n %lld %p %5%	14
+P	100%% sure		100% sure	9
+P	%*d|%-*d|%.*d	i:6 i:7 i:6 i:7 i:6 i:7	     7|7     |000007	20
+P				0
+P	plain text, no conversions		plain text, no conversions	26
+P	%s	S:	(null)	6
+P	%s	s:zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz	zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz	300
+P	%.250d	i:7	0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007	250
+P	%400d	i:7	                                                                                                                                                                                                                                                                                                                                                                                                               7	400
+P	%-400d|	i:7	7                                                                                                                                                                                                                                                                                                                                                                                                               |	401
+P	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx%dyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy	i:5	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx5yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy	601
+P	%d %d %d %d %d %d	i:111 i:222 i:333 i:444 i:555 i:666	111 222 333 444 555 666	23

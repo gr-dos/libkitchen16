@@ -1,0 +1,21 @@
+# The members each tests/fmt program links (tests/check-members): its
+# libkitchen16 members, and libc16's with a c16: prefix. `fmt` is the
+# conversion engine. No program here links an Open Watcom routine or a
+# floating-point helper (the c16:i4m and c16:u4d of fastpath are the long
+# multiply and divide of its own arithmetic on integers), and a program that
+# calls only one of the four functions links that one, the engine and
+# libc16's errno, whether or not it converts a double (purity, dblonly).
+# libc16's other members are what its fopen, fgets, fclose and the startup
+# link, at the version libc16 is pinned to (scripts/fetch-libc16).
+
+purity: fmt sprintf c16:cstart c16:errno
+nolink: fmt sprintf c16:cstart c16:errno
+dblonly: fmt sprintf c16:cstart c16:errno
+only_sp: fmt sprintf c16:cstart c16:errno
+only_sn: fmt snprintf c16:cstart c16:errno
+only_vsp: fmt vsprintf c16:cstart c16:errno
+only_vsn: fmt vsnprintf c16:cstart c16:errno
+limits: fmt snprintf sprintf vsnprintf vsprintf c16:cstart c16:errno c16:memset
+fmt: fmt snprintf sprintf vsnprintf vsprintf c16:args c16:argv c16:close c16:cstart c16:doserr c16:errno c16:fclose c16:fdtab c16:fgetc c16:fgets c16:fopen c16:memcmp c16:memcpy c16:memset c16:open c16:read c16:strlen
+stack: fmt snprintf sprintf vsnprintf vsprintf c16:args c16:argv c16:close c16:cstart c16:doserr c16:errno c16:fclose c16:fdtab c16:fgetc c16:fgets c16:fopen c16:memcmp c16:memcpy c16:memset c16:open c16:read c16:strlen
+fastpath: fmt snprintf sprintf vsnprintf vsprintf c16:args c16:argv c16:close c16:cstart c16:doserr c16:errno c16:fclose c16:fdtab c16:fgetc c16:fgets c16:fopen c16:i4m c16:memcmp c16:memcpy c16:memmove c16:memset c16:open c16:read c16:strcat c16:strcmp c16:strcpy c16:strlen c16:u4d

@@ -1,0 +1,876 @@
+#!/usr/bin/env perl
+
+use 5.040;
+use warnings;
+no warnings 'portable';
+use autodie;
+use Math::BigInt;
+use File::Basename qw(dirname);
+use File::Path qw(make_path);
+use Getopt::Long;
+
+=head1 NAME
+
+gen - write the corpora of tests/fmt and tests/fmtio
+
+=head1 SYNOPSIS
+
+  tests/fmt/gen [--verify] [--scale N] [--out DIR] [--fmtio DIR]
+
+=head1 DESCRIPTION
+
+Writes the data files of tests/fmt (default tests/fmt/data) and tests/fmtio
+(tests/fmtio/data/pc.dat, tests/fmtio/pc.expect). The programs read them;
+nothing is converted from text to double on the target.
+
+Each data line has five tab-separated fields:
+
+  MODE  FORMAT  ARGS  EXPECTED  RETURN
+
+MODE is C<P> (output into a roomy buffer) or C<N>K (snprintf and vsnprintf
+with n = K; EXPECTED is still the whole output and RETURN its length, the
+program truncates). FORMAT and EXPECTED have C<\\>, bytes below 0x20 and
+bytes above 0x7e written as C<\\xHH> (C<\\t>, C<\\n>, C<\\r> and C<\\\\> too).
+ARGS are space-separated tokens, spaces inside a string written C<\\x20>:
+
+  i:N        an int (-32768..65535)
+  l:N        a long (-2147483648..4294967295)
+  d:HEX16    a double, as its 16 hex digits (sign bit first)
+  s:TEXT     a string (escaped as above)
+  S:         a null string pointer
+
+The expected output is computed here by a model of docs/spec/fmt.md written
+for this generator (the exact decimal digits come from Math::BigInt
+arithmetic on the binary value). The host's own C<sprintf> (over the host's C
+library) is the oracle for every valid specification: with --verify each
+line is also formatted by Perl's C<sprintf>, and any difference is reported
+(the committed files are written with the model's output, which differs from
+Perl's only where the spec says so, listed in tests/fmt/README.txt).
+
+=cut
+
+my %opt = (scale => 2, out => dirname($0) . '/data', fmtio => dirname($0) . '/../fmtio');
+GetOptions(\%opt, 'verify', 'scale=i', 'out=s', 'fmtio=s', 'check=s') or die "usage\n";
+
+# ------------------------------------------------------------------ values
+
+my @ints16 = do {
+  my %s;
+  my @v = (0, 1, 2, 3, 5, 7, 9, 10, 11, 99, 100, 101, 127, 128, 129, 255, 256, 257, 999, 1000, 1001,
+    9999, 10000, 10001, 32766, 32767, 32768, 65535, 65534, 12345, 54321, 0x7f7f, 0x8000, 0x8001, 0xabcd);
+  for my $k (0 .. 15) { push @v, (1 << $k) - 1, 1 << $k, (1 << $k) + 1 }
+  for my $k (0 .. 5) { my $p = 8**$k; push @v, $p - 1, $p, $p + 1 }
+  for my $k (0 .. 4) { my $p = 10**$k; push @v, $p - 1, $p, $p + 1 }
+  for my $k (0 .. 3) { my $p = 16**$k; push @v, $p - 1, $p, $p + 1 }
+  # 16-bit patterns; d and i show them as signed, the others as unsigned
+  grep { !$s{$_}++ } map { $_ & 0xFFFF } @v, map { -$_ } @v;
+};
+
+my @longs = do {
+  my %s;
+  my @v = (0, 1, 2, 7, 10, 99, 100, 255, 65535, 65536, 65537, 99999, 100000, 1000000, 123456789,
+    2147483646, 2147483647, 2147483648, 2147483649, 4294967295, 4294967294, 305419896, 0xdeadbeef);
+  for my $k (0 .. 31) { push @v, (1 << $k) - 1, 1 << $k, (1 << $k) + 1 }
+  for my $k (0 .. 10) { my $p = 8**$k; push @v, $p - 1, $p, $p + 1 }
+  for my $k (0 .. 9) { my $p = 10**$k; push @v, $p - 1, $p, $p + 1 }
+  for my $k (0 .. 7) { my $p = 16**$k; push @v, $p - 1, $p, $p + 1 }
+  grep { !$s{$_}++ } map { $_ & 0xFFFFFFFF } grep { $_ >= 0 } @v, map { -$_ } @v;
+};
+
+sub sgn16 ($u) { $u >= 0x8000 ? $u - 0x10000 : $u }
+sub sgn32 ($u) { $u >= 0x80000000 ? $u - 0x100000000 : $u }
+
+# a double from its sign, biased exponent and 52-bit fraction
+sub dbits ($sign, $e, $frac) { sprintf '%016X', ($sign << 63) | ($e << 52) | $frac }
+sub bits_of_nv ($nv)   { uc unpack 'H16', pack 'd>', $nv }
+sub nv_of_bits ($hex)  { unpack 'd>', pack 'H16', $hex }
+sub next_bits ($hex, $d) {    # the neighbour, by bit pattern (sign and magnitude)
+  my $u = Math::BigInt->from_hex("0x$hex");
+  my $sign = $u->copy->brsft(63)->numify;
+  my $mag  = $u->copy->band(Math::BigInt->from_hex('0x7FFFFFFFFFFFFFFF'));
+  $mag->badd($d);
+  $mag = Math::BigInt->bzero if $mag->is_neg;
+  return sprintf '%016s', uc substr($mag->bior(Math::BigInt->new($sign)->blsft(63))->as_hex, 2);
+}
+
+my $ZERO   = '0000000000000000';
+my $NZERO  = '8000000000000000';
+my $PINF   = '7FF0000000000000';
+my $NINF   = 'FFF0000000000000';
+my $QNAN   = '7FF8000000000000';
+my $NQNAN  = 'FFF8000000000000';
+my $SNAN   = '7FF0000000000001';
+my $NNANP  = 'FFF123456789ABCD';
+my $MAXD   = '7FEFFFFFFFFFFFFF';
+my $MIND   = '0010000000000000';
+my $SUBMIN = '0000000000000001';
+my $SUBMAX = '000FFFFFFFFFFFFF';
+
+my @specials = ($ZERO, $NZERO, $PINF, $NINF, $QNAN, $NQNAN, $SNAN, $NNANP);
+
+sub pow10_bits ($k)   { bits_of_nv("1e$k" + 0) }
+sub pow2_bits ($k) {   # 2**k exactly, including subnormals, from the bit pattern
+  return dbits(0, $k + 1023, 0) if $k >= -1022;
+  return sprintf '%016X', Math::BigInt->bone->blsft($k + 1074)->numify;
+}
+sub neighbours ($hex) { (next_bits($hex, -1), $hex, next_bits($hex, 1)) }
+
+# Ties, halves, and the values the spec names.
+my @simple = map { bits_of_nv($_) } (0.5, 1.5, 2.5, 3.5, 4.5, 0.125, 0.375, 0.625, 0.875, 1.0, 2.0, 3.0, 10.0,
+  100.0, 0.25, 0.75, 1.25, 8.5, 9.5, 99.5, 0.05, 0.15, 0.25, 0.35, 0.45, 0.001, 123.456, 1234567.0, 0.1, 0.2, 0.3,
+  1/3, 2/3, 1e15, 1e16, 1e17, 12345678901234567890.0, 999999.5, 9999995, 0.0000099999995, 1e-5, 99999.95,
+  0.00001234, 4.35, 1.005, 2.675, 1e21, 1e22, 1e23, 5e-324 * 0 + 1e-300, 3.14159265358979, 2.718281828459045,
+  65536.0, 4294967296.0, 9007199254740992.0, 9007199254740993.0, 4503599627370496.5, 0.3, 1e100);
+my @core = (@simple, (map { bits_of_nv(-$_) } (0.5, 2.5, 1/3, 123.456, 1e-5, 1.5)),
+  $MAXD, $MIND, $SUBMIN, $SUBMAX, $ZERO, $NZERO, $PINF, $NINF, $QNAN, $NQNAN, next_bits($MAXD, -1),
+  next_bits($MIND, 1), next_bits($SUBMIN, 1), next_bits(pow10_bits(0), 1), next_bits(pow10_bits(0), -1));
+
+# ------------------------------------------------------------------ the model of the spec
+
+sub pow10 ($n) { Math::BigInt->new(10)->bpow($n) }
+
+# an exact binary value M * 2**E from a double's bits: ($sign, $kind, $M, $E)
+sub decode ($hex) {
+  my $u    = Math::BigInt->from_hex("0x$hex");
+  my $sign = $u->copy->brsft(63)->numify;
+  my $e    = $u->copy->brsft(52)->band(0x7FF)->numify;
+  my $f    = $u->copy->band(Math::BigInt->from_hex('0xFFFFFFFFFFFFF'));
+  return ($sign, 'special', $f->is_zero ? 'inf' : 'nan', 0) if $e == 2047;
+  return ($sign, 'finite', $f, -1074) if $e == 0;
+  return ($sign, 'finite', $f->bior(Math::BigInt->bone->blsft(52)), $e - 1075);
+}
+
+# round-half-even of M * 2**E * 10**K as a Math::BigInt
+sub scaled ($m, $e, $k) {
+  my $num = $m->copy;
+  my $den = Math::BigInt->bone;
+  $e >= 0 ? $num->blsft($e) : $den->blsft(-$e);
+  $k >= 0 ? $num->bmul(pow10($k)) : $den->bmul(pow10(-$k));
+  my ($q, $r) = $num->bdiv($den);
+  my $twice = $r->copy->blsft(1);
+  my $c     = $twice->bcmp($den);
+  $q->binc if $c > 0 || ($c == 0 && $q->is_odd);
+  return $q;
+}
+
+# floor(log10(M * 2**E)) for a positive value, exactly
+sub floor_log10 ($m, $e) {
+  my $ge = sub ($x) {    # M * 2**E >= 10**X
+    my $lhs = $m->copy;
+    my $rhs = Math::BigInt->bone;
+    $e >= 0 ? $lhs->blsft($e) : $rhs->blsft(-$e);
+    $x >= 0 ? $rhs->bmul(pow10($x)) : $lhs->bmul(pow10(-$x));
+    $lhs->bcmp($rhs) >= 0;
+  };
+  my $est = int(log($m->numify) / log(10) + $e * log(2) / log(10));
+  $est-- until $ge->($est);
+  $est++ while $ge->($est + 1);
+  return $est;
+}
+
+# the digits of the e style: ($digits, $exp10) with $p + 1 digits
+sub e_digits ($m, $e, $p) {
+  return ('0' x ($p + 1), 0) if $m->is_zero;
+  my $x = floor_log10($m, $e);
+  my $n = scaled($m, $e, $p - $x);
+  if ($n->bcmp(pow10($p + 1)) >= 0) { $x++; $n = pow10($p) }
+  return ($n->bstr, $x);
+}
+
+sub add_point ($int, $frac, $alt) { $frac ne '' || $alt ? "$int.$frac" : $int }
+
+# the body of a floating conversion (no sign, no padding) for a finite value
+sub float_body ($conv, $alt, $prec, $m, $e) {
+  my $lc = lc $conv;
+  my $body;
+  if ($lc eq 'f') {
+    my $p = $prec // 6;
+    my $d = scaled($m, $e, $p)->bstr;
+    $d = ('0' x ($p + 1 - length $d)) . $d if length $d < $p + 1;
+    $body = add_point(substr($d, 0, length($d) - $p), substr($d, length($d) - $p), $alt);
+  } elsif ($lc eq 'e') {
+    my $p = $prec // 6;
+    my ($d, $x) = e_digits($m, $e, $p);
+    $body = add_point(substr($d, 0, 1), substr($d, 1), $alt) . sprintf('e%s%02d', $x < 0 ? '-' : '+', abs $x);
+  } else {
+    my $p = $prec // 6;
+    $p = 1 if $p == 0;
+    my ($d, $x) = e_digits($m, $e, $p - 1);
+    if ($p > $x && $x >= -4) {
+      my $q  = $p - 1 - $x;
+      my $fd = scaled($m, $e, $q)->bstr;
+      $fd = ('0' x ($q + 1 - length $fd)) . $fd if length $fd < $q + 1;
+      my ($i, $f) = (substr($fd, 0, length($fd) - $q), substr($fd, length($fd) - $q));
+      unless ($alt) { $f =~ s/0+$//; }
+      $body = add_point($i, $f, $alt);
+    } else {
+      my ($i, $f) = (substr($d, 0, 1), substr($d, 1));
+      unless ($alt) { $f =~ s/0+$//; }
+      $body = add_point($i, $f, $alt) . sprintf('e%s%02d', $x < 0 ? '-' : '+', abs $x);
+    }
+  }
+  return $conv =~ /[A-Z]/ ? uc $body : $body;
+}
+
+sub pad ($sign, $body, $flags, $width, $zero_ok) {
+  my $len = length($sign) + length $body;
+  return "$sign$body" if $len >= $width;
+  return "$sign$body" . (' ' x ($width - $len)) if $flags =~ /-/;
+  return $sign . ('0' x ($width - $len)) . $body if $flags =~ /0/ && $zero_ok;
+  return (' ' x ($width - $len)) . "$sign$body";
+}
+
+sub signstr ($neg, $flags) { $neg ? '-' : $flags =~ /\+/ ? '+' : $flags =~ / / ? ' ' : '' }
+
+sub fmt_double ($conv, $flags, $width, $prec, $hex) {
+  my ($sign, $kind, $m, $e) = decode($hex);
+  my $sg = signstr($sign, $flags);
+  if ($kind eq 'special') {
+    my $t = $conv =~ /[EG]/ ? uc $m : $m;
+    return pad($sg, $t, $flags =~ s/0//gr, $width, 0);
+  }
+  return pad($sg, float_body($conv, scalar($flags =~ /#/), $prec, $m, $e), $flags, $width, 1);
+}
+
+sub fmt_int ($conv, $flags, $width, $prec, $val) {    # $val: signed for d i, unsigned otherwise
+  my ($sg, $digits, $prefix) = ('', '', '');
+  if ($conv =~ /[di]/) {
+    $sg     = signstr($val < 0, $flags);
+    $digits = abs($val) . '';
+  } else {
+    $digits = $conv eq 'u' ? "$val" : $conv eq 'o' ? sprintf('%o', $val) : $conv eq 'x' ? sprintf('%x', $val) : sprintf('%X', $val);
+  }
+  $digits = '' if defined $prec && $prec == 0 && $val == 0;
+  $digits = ('0' x ($prec - length $digits)) . $digits if defined $prec && length $digits < $prec;
+  if ($flags =~ /#/) {
+    $digits = "0$digits" if $conv eq 'o' && $digits !~ /^0/;
+    $prefix = "0$conv" if $conv =~ /[xX]/ && $val != 0;
+  }
+  return pad($sg . $prefix, $digits, $flags, $width, !defined $prec);
+}
+
+sub fmt_str ($flags, $width, $prec, $s) {
+  $s = substr($s, 0, $prec) if defined $prec && $prec < length $s;
+  return pad('', $s, $flags =~ s/0//gr, $width, 0);
+}
+
+# An argument: [i => N], [l => N], [d => HEX], [s => STRING], ['S'] (a null pointer).
+# Returns ($output, $return). Follows docs/spec/fmt.md, "The format" and
+# "Invalid and unsupported specifications".
+our $invalid_seen;
+sub model ($fmt, @args) {
+  $invalid_seen = 0;
+  my $out = '';
+  my @in  = @args;
+  my $take = sub ($types) {
+    my $a = shift @in or die "model: out of arguments for '$fmt'\n";
+    die "model: argument $a->[0] is not one of $types for '$fmt'\n" unless index($types, $a->[0]) >= 0;
+    $a;
+  };
+  my $n = length $fmt;
+  my $i = 0;
+  while ($i < $n) {
+    my $c = substr($fmt, $i, 1);
+    if ($c ne '%') { $out .= $c; $i++; next }
+    my $start = $i++;
+    my $flags = '';
+    $flags .= substr($fmt, $i++, 1) while $i < $n && substr($fmt, $i, 1) =~ /^[-+ #0]$/;
+    my ($width, $wstar, $prec, $pstar, $pdot, $mod) = (0, 0, undef, 0, 0, '');
+    my $bad = sub { $invalid_seen = 1; $out .= substr($fmt, $start, $i - $start + 1); $i++; };
+    my $dig = sub ($j) { $j < $n && substr($fmt, $j, 1) =~ /^[0-9]$/ };
+    my $invalid;
+    if ($i < $n && substr($fmt, $i, 1) eq '*') {
+      $wstar = 1; $i++;
+      if ($dig->($i)) { $bad->(); next }
+    } elsif ($dig->($i)) {
+      my $d = '';
+      $d .= substr($fmt, $i++, 1) while $dig->($i);
+      $width = $d + 0 > 32767 ? 32767 : $d + 0;
+    }
+    if ($i < $n && substr($fmt, $i, 1) eq '.') {
+      $pdot = 1; $i++;
+      if ($i < $n && substr($fmt, $i, 1) eq '*') {
+        $pstar = 1; $i++;
+        if ($dig->($i)) { $bad->(); next }
+      } else {
+        my $d = '';
+        $d .= substr($fmt, $i++, 1) while $dig->($i);
+        $prec = $d eq '' ? 0 : $d + 0 > 32767 ? 32767 : $d + 0;
+      }
+    }
+    if ($i < $n && substr($fmt, $i, 1) =~ /^[hlL]$/) {
+      $mod = substr($fmt, $i++, 1);
+      if ($i < $n && substr($fmt, $i, 1) =~ /^[hlL]$/) { $bad->(); next }
+    }
+    if ($i >= $n) { $invalid_seen = 1; $out .= substr($fmt, $start); last }
+    my $conv = substr($fmt, $i, 1);
+    my $between = $i - $start > 1;
+    my $ok = $conv =~ /^[diuoxXeEfgG]$/ ? 1    # a modifier that does not apply is ignored
+           : $conv =~ /^[cs]$/     ? $mod ne 'l'
+           : $conv eq '%'          ? !$between
+           : 0;
+    if (!$ok) { $bad->(); next }
+    $i++;
+    if ($conv eq '%') { $out .= '%'; next }
+    if ($wstar) {
+      my $w = sgn16($take->('i')->[1] & 0xFFFF);
+      if ($w < 0) { $flags .= '-'; $w = -$w }
+      $width = $w > 32767 ? 32767 : $w;
+    }
+    if ($pstar) {
+      my $p = sgn16($take->('i')->[1] & 0xFFFF);
+      $prec = $p < 0 ? undef : $p;
+    }
+    if ($conv =~ /[diuoxX]/) {
+      my $long = $mod eq 'l';
+      my $a    = $take->($long ? 'l' : 'i');
+      my $v    = $long ? $a->[1] & 0xFFFFFFFF : $a->[1] & 0xFFFF;
+      $v = $long ? sgn32($v) : sgn16($v) if $conv =~ /[di]/;
+      $out .= fmt_int($conv, $flags, $width, $prec, $v);
+    } elsif ($conv eq 'c') {
+      $out .= pad('', chr($take->('i')->[1] & 0xFF), $flags =~ s/0//gr, $width, 0);
+    } elsif ($conv eq 's') {
+      my $a = $take->('sS');
+      $out .= fmt_str($flags, $width, $prec, $a->[0] eq 'S' ? '(null)' : $a->[1]);
+    } else {
+      $out .= fmt_double($conv, $flags, $width, $prec, $take->('d')->[1]);
+    }
+  }
+  die "model: unused arguments for '$fmt'\n" if @in;
+  return ($out, length $out);
+}
+
+# ------------------------------------------------------------------ the host oracle (--verify)
+
+# Perl's sprintf on the same specification, for valid specifications only.
+sub host ($fmt, @args) {
+  my @a;
+  for my $a (@args) {
+    push @a, $a->[0] eq 'd' ? nv_of_bits($a->[1]) : $a->[0] eq 'S' ? undef : $a->[1];
+  }
+  my $f = $fmt =~ s/(?<=%)([-+ #0]*[0-9*]*(?:\.[0-9*]*)?)[hlL]+/$1/gr;
+  return eval { no warnings; sprintf $f, @a };
+}
+
+# ------------------------------------------------------------------ data lines
+
+# fields of a format (not a string argument): spaces stay, ends included
+sub esc_fmt ($s) { $s =~ s{([\\\x00-\x1f\x7f-\xff])}{ my $c = $1; $c eq '\\' ? '\\\\' : $c eq "\t" ? '\\t' : $c eq "\n" ? '\\n' : $c eq "\r" ? '\\r' : sprintf '\\x%02X', ord $c }ger }
+sub esc_arg ($s) { esc_fmt($s) =~ s/ /\\x20/gr }
+
+sub arg_text ($a) {
+  my ($t, $v) = @$a;
+  return "i:$v" if $t eq 'i';
+  return "l:$v" if $t eq 'l';
+  return "d:$v" if $t eq 'd';
+  return 'S:'   if $t eq 'S';
+  return 's:' . esc_arg($v);
+}
+
+my $verify_bad = 0;
+my $verified = 0;
+sub line ($mode, $fmt, @args) {
+  my ($out, $ret) = model($fmt, @args);
+  if ($opt{verify} && !$invalid_seen) {
+    # where Perl's sprintf is not C's: inf and nan, null strings, the 0 flag on
+    # c and s, characters above 255, and lengths beyond what is useful
+    my $skip = grep { $_->[0] eq 'S' || ($_->[0] eq 'd' && (decode($_->[1]))[1] eq 'special') } @args;
+    $skip ||= $fmt =~ /%[-+ #]*0[^%]*?[cs]/;
+    $skip ||= $fmt =~ /%[^%]*?c/ && grep { $_->[0] eq 'i' && ($_->[1] < 0 || $_->[1] > 255) } @args;
+    $skip ||= length($out) > 4000;
+    if (!$skip) {
+      $verified++;
+      my $h = host($fmt, @args);
+      if (!defined $h || $h ne $out) {
+        $verify_bad++;
+        say STDERR "verify: '$fmt' @{[ map { arg_text($_) } @args ]}: model [", substr($out, 0, 60), "] host [", substr($h // 'undef', 0, 60), "]" if $verify_bad <= 40;
+      }
+    }
+  }
+  return join "\t", $mode, esc_fmt($fmt), join(' ', map { arg_text($_) } @args), esc_fmt($out), $ret;
+}
+
+my %set;    # file base => [lines]
+sub emit ($base, $mode, $fmt, @args) {
+  my $l = line($mode, $fmt, @args);
+  push $set{$base}->@*, $l;
+}
+
+# ------------------------------------------------------------------ the corpus
+
+my @flag_sets = do {
+  my @f;
+  for my $m (0 .. 31) { push @f, join '', map { (qw(- + ), ' ', '#', '0')[$_] } grep { $m & (1 << $_) } 0 .. 4 }
+  @f;
+};
+my @widths = (undef, 1, 8, 30);
+my @precs  = (undef, 0, 1, 6, 17, 20, 40);
+sub spec ($flags, $width, $prec, $mod, $conv) { '%' . $flags . ($width // '') . (defined $prec ? ".$prec" : '') . $mod . $conv }
+
+my $scale = $opt{scale};
+
+# Integers: every combination of flags, width and precision, with a rotating
+# choice of values, then every value with a few combinations.
+sub int_set ($base, $convs, $mod, $values, $perbox, $sweep_boxes) {
+  my $i = 0;
+  my $long = $mod eq 'l';
+  my $mk = sub ($conv, $u) {
+    my $v = $conv =~ /[di]/ ? ($long ? sgn32($u) : sgn16($u)) : $u;
+    [$long ? 'l' : 'i', $v];
+  };
+  for my $conv (@$convs) {
+    my $step = 0;
+    for my $f (@flag_sets) {
+      for my $w (@widths) {
+        for my $p (@precs) {
+          for my $j (1 .. $perbox) {
+            my $u = $values->[($step * 7 + $j * 13 + length($f) * 3) % @$values];
+            emit($base, 'P', spec($f, $w, $p, $mod, $conv), $mk->($conv, $u));
+          }
+          $step++;
+        }
+      }
+    }
+    for my $box (@$sweep_boxes) {
+      my ($f, $w, $p) = @$box;
+      emit($base, 'P', spec($f, $w, $p, $mod, $conv), $mk->($conv, $_)) for @$values;
+    }
+  }
+}
+
+my @int_sweeps  = (['', undef, undef], ['+#', 12, 0], ['-0', 14, 6]);
+my @long_sweeps = @int_sweeps;
+int_set('intdi', [qw(d i)],   '',  \@ints16, 1, \@int_sweeps);
+int_set('intuo', [qw(u o)],   '',  \@ints16, 1, \@int_sweeps);
+int_set('intx',  [qw(x X)],   '',  \@ints16, 1, \@int_sweeps);
+int_set('longdi', [qw(d i)],  'l', \@longs,  1, \@long_sweeps);
+int_set('longuo', [qw(u o)],  'l', \@longs,  1, \@long_sweeps);
+int_set('longx',  [qw(x X)],  'l', \@longs,  1, \@long_sweeps);
+
+# h: the same as no modifier
+{
+  my $k = 0;
+  for my $conv (qw(d i u o x X)) {
+    for my $f ('', '-', '+', ' ', '#', '0', '#0', '-+') {
+      for my $w (undef, 8) {
+        for my $p (undef, 0, 6) {
+          my $u = $ints16[($k++ * 11) % @ints16];
+          emit('intmisc', 'P', spec($f, $w, $p, 'h', $conv), ['i', $conv =~ /[di]/ ? sgn16($u) : $u]);
+        }
+      }
+    }
+  }
+}
+
+# --- doubles: the cross product, a rotating choice of values
+{
+  my $k = 0;
+  for my $conv (qw(e E f g G)) {
+    for my $f (@flag_sets) {
+      for my $w (@widths) {
+        for my $p (@precs) {
+          for my $j (1) {
+            my $v = $core[($k * 7 + $j * 17 + 3) % @core];
+            $k++;
+            emit('dblx' . lc $conv, 'P', spec($f, $w, $p, '', $conv), ['d', $v]);
+          }
+        }
+      }
+    }
+  }
+}
+
+# L is a double too
+for my $conv (qw(e E f g G)) {
+  my $k = 0;
+  for my $f ('', '-', '+', '#', '0', ' ') {
+    for my $p (undef, 0, 3, 17) {
+      emit('dblmisc', 'P', spec($f, 14, $p, 'L', $conv), ['d', $core[($k++ * 9 + 4) % @core]]);
+    }
+  }
+}
+
+# --- the specials with every flag
+for my $conv (qw(e E f g G)) {
+  for my $f (@flag_sets) {
+    for my $w (undef, 8) {
+      for my $v (@specials) { emit('dblspec', 'P', spec($f, $w, undef, '', $conv), ['d', $v]) }
+    }
+  }
+}
+emit('dblspec', 'P', spec('', undef, 3, '', 'f'), ['d', $_]) for @specials;
+emit('dblspec', 'P', spec('0', 12, 3, '', 'e'), ['d', $_]) for @specials;
+emit('dblspec', 'P', spec('+', 12, 1, '', 'G'), ['d', $_]) for @specials;
+emit('dblspec', 'P', 'x%fy%ez', ['d', $PINF], ['d', $NQNAN]);
+
+# --- every core value with some combinations
+{
+  my @boxes = (['', undef, undef], ['+', 20, 3], ['-0', 25, 10], ['#', undef, 40]);
+  for my $conv (qw(e f g)) {
+    for my $b (@boxes) {
+      emit('dblcore', 'P', spec($b->[0], $b->[1], $b->[2], '', $conv), ['d', $_]) for @core;
+    }
+  }
+}
+
+# --- powers of ten and two, each with both neighbours, over the whole range
+{
+  my $step = 5 * $scale;
+  my @p10 = grep { $_ % $step == 0 || abs($_) >= 300 || $_ == -1 || $_ == 1 } (-323 .. 308);
+  my @p2  = grep { $_ % (11 * $scale) == 0 || $_ >= 1020 || $_ <= -1070 || abs($_) <= 3 } (-1074 .. 1023);
+  my @vals = map { neighbours(pow10_bits($_)) } @p10;
+  push @vals, map { neighbours(pow2_bits($_)) } @p2;
+  push @vals, map { neighbours(bits_of_nv(-(1e0 * 10**$_))) } (-3 .. 3);
+  my @fmts = (['', undef, 17, 'g'], ['', undef, 20, 'g'], ['', undef, undef, 'e'], ['', undef, undef, 'f'], ['', undef, undef, 'g'], ['', undef, 0, 'f']);
+  my $k = 0;
+  for my $v (@vals) {
+    # each value with three of the formats, rotating, so that all get each
+    for my $j (0 .. 2) {
+      my $f = $fmts[($k + $j * 2) % @fmts];
+      emit('dblpow', 'P', spec($f->[0], $f->[1], $f->[2], '', $f->[3]), ['d', $v]);
+    }
+    $k++;
+  }
+  # a few at length
+  for my $v ((map { pow10_bits($_) } (-323, -300, -100, -10, -1, 0, 1, 10, 22, 23, 100, 200, 300, 308)), $MAXD, $MIND, $SUBMIN, $SUBMAX) {
+    emit('dblpow', 'P', '%.30f',  ['d', $v]);
+    emit('dblpow', 'P', '%.40e',  ['d', $v]);
+    emit('dblpow', 'P', '%.100g', ['d', $v]);
+  }
+}
+
+# --- ties and halves at every precision
+{
+  my @ties = map { bits_of_nv($_) } (0.5, 1.5, 2.5, 3.5, 0.125, 0.375, 0.625, 0.875, 0.0625, 0.03125, 1.0 / 1024, 5.5, 6.5, 10.5, 11.5, 0.25, 0.75, 1.25, 1.75, 4.5, 100.5, 101.5, 1e15 + 0.5, 4503599627370495.5, 4503599627370496.5);
+  push @ties, map { bits_of_nv(-$_) } (0.5, 1.5, 2.5, 0.125);
+  for my $p (0 .. 6, 10, 15, 20) {
+    for my $conv (qw(f e g)) {
+      emit('dblties', 'P', spec('', undef, $p, '', $conv), ['d', $_]) for @ties;
+    }
+  }
+}
+
+# --- the exactness examples
+{
+  my $third = bits_of_nv(1 / 3);
+  emit('dblexact', 'P', '%.20g', ['d', bits_of_nv(0.1)]);
+  emit('dblexact', 'P', '%.20g', ['d', $third]);
+  emit('dblexact', 'P', '%.0f', ['d', bits_of_nv(2.5)]);
+  emit('dblexact', 'P', '%.0f', ['d', bits_of_nv(3.5)]);
+  emit('dblexact', 'P', '%.30f', ['d', bits_of_nv(1.0)]);
+  emit('dblexact', 'P', '%.0f', ['d', $MAXD]);
+  emit('dblexact', 'P', '%.0f', ['d', bits_of_nv(1.7976931348623157e308)]);
+  emit('dblexact', 'P', '%.400f', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%.1000f', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%.1100f', ['d', $SUBMAX]);
+  emit('dblexact', 'P', '%.340f', ['d', $MIND]);
+  emit('dblexact', 'P', '%.1074e', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%.767e', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%.800g', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%.800g', ['d', $MAXD]);
+  emit('dblexact', 'P', '%.800f', ['d', $MIND]);
+  emit('dblexact', 'P', '%#.40g', ['d', bits_of_nv(1.0)]);
+  emit('dblexact', 'P', '%.1f', ['d', bits_of_nv(0.05)]);
+  emit('dblexact', 'P', '%.1f', ['d', bits_of_nv(0.25)]);
+  emit('dblexact', 'P', '%.2f', ['d', bits_of_nv(2.675)]);
+  emit('dblexact', 'P', '%.2f', ['d', bits_of_nv(1.005)]);
+  emit('dblexact', 'P', '%.17g', ['d', bits_of_nv(0.1)]);
+  emit('dblexact', 'P', '%.16g', ['d', bits_of_nv(0.1)]);
+  emit('dblexact', 'P', '%.15g', ['d', bits_of_nv(0.1)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(100000)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(1000000)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(0.0001)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(0.00001)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(999999.5)]);
+  emit('dblexact', 'P', '%g', ['d', bits_of_nv(9999995)]);
+  emit('dblexact', 'P', '%.3g', ['d', bits_of_nv(0.00099995)]);
+  emit('dblexact', 'P', '%.0g', ['d', bits_of_nv(0.5)]);
+  emit('dblexact', 'P', '%.0g', ['d', bits_of_nv(25)]);
+  emit('dblexact', 'P', '%.0e', ['d', bits_of_nv(25)]);
+  emit('dblexact', 'P', '%#.0e', ['d', bits_of_nv(25)]);
+  emit('dblexact', 'P', '%#.0f', ['d', bits_of_nv(25)]);
+  emit('dblexact', 'P', '%#g', ['d', bits_of_nv(25)]);
+  emit('dblexact', 'P', '%#g', ['d', $ZERO]);
+  emit('dblexact', 'P', '%e', ['d', $ZERO]);
+  emit('dblexact', 'P', '%e', ['d', $NZERO]);
+  emit('dblexact', 'P', '%E', ['d', $MAXD]);
+  emit('dblexact', 'P', '%e', ['d', $SUBMIN]);
+  emit('dblexact', 'P', '%e', ['d', $MIND]);
+}
+
+# --- a seeded pseudo-random set of bit patterns
+{
+  my $x = 0x9E3779B97F4A7C15;
+  my $rnd = sub {
+    $x ^= ($x << 13) & 0xFFFFFFFFFFFFFFFF;
+    $x ^= $x >> 7;
+    $x ^= ($x << 17) & 0xFFFFFFFFFFFFFFFF;
+    $x;
+  };
+  my @vals;
+  while (@vals < 30 * $scale) {    # any exponent
+    my $u = $rnd->();
+    next if (($u >> 52) & 0x7FF) == 0x7FF;
+    push @vals, sprintf '%016X', $u;
+  }
+  while (@vals < 60 * $scale) {    # exponents near 0
+    my $u = $rnd->();
+    my $e = 1023 - 40 + ($rnd->() % 80);
+    push @vals, sprintf '%016X', ($u & 0x800FFFFFFFFFFFFF) | ($e << 52);
+  }
+  for my $v (@vals) {
+    emit('dblrand', 'P', $_, ['d', $v]) for ('%.17g', '%.20g', '%.0f', '%e', '%f', '%g');
+  }
+}
+
+# --- * widths and precisions, %%, strings and characters, invalid specifications
+{
+  my @iv = (0, 1, -1, 7, 8, 12, -12, 30, -30, 32767, -32767, -32768, 100);
+  for my $w (@iv) {
+    next if abs($w) >= 100 && 0;
+    emit('misc', 'P', '[%*d]', ['i', $w], ['i', 42]) if abs($w) < 100;
+    emit('misc', 'P', '[%-*d]', ['i', $w], ['i', -42]) if abs($w) < 100;
+    emit('misc', 'P', '[%0*d]', ['i', $w], ['i', 42]) if abs($w) < 100;
+    emit('misc', 'P', '[%*s]', ['i', $w], ['s', 'abc']) if abs($w) < 100;
+    emit('misc', 'P', '[%.*s]', ['i', $w], ['s', 'abcdefgh']);
+    emit('misc', 'P', '[%.*d]', ['i', $w], ['i', 42]) if abs($w) < 100;
+    emit('misc', 'P', '[%.*f]', ['i', $w], ['d', bits_of_nv(3.14159)]) if abs($w) < 100;
+    emit('misc', 'P', '[%.*e]', ['i', $w], ['d', bits_of_nv(31.4159)]) if abs($w) < 100;
+    emit('misc', 'P', '[%.*g]', ['i', $w], ['d', bits_of_nv(31.4159)]) if abs($w) < 100;
+    emit('misc', 'P', '[%*.*f]', ['i', $w], ['i', 3], ['d', bits_of_nv(2.5)]) if abs($w) < 100;
+    emit('misc', 'P', '[%*.*x]', ['i', 10], ['i', $w], ['i', 0xbeef]) if abs($w) < 100;
+    emit('misc', 'P', '[%*c]', ['i', $w], ['i', 65]) if abs($w) < 100;
+  }
+  emit('misc', 'P', '[%*.*s]', ['i', -8], ['i', -2], ['s', 'hello']);
+  emit('misc', 'P', '[%*.*s]', ['i', 8], ['i', 2], ['s', 'hello']);
+  emit('misc', 'P', '[%-*.*ld]', ['i', 12], ['i', 8], ['l', -123456]);
+  emit('misc', 'P', '[%*d|%*d|%*d]', ['i', 3], ['i', 1], ['i', -3], ['i', 2], ['i', 0], ['i', 3]);
+
+  emit('misc', 'P', '%%');
+  emit('misc', 'P', '100%%');
+  emit('misc', 'P', '%%%%');
+  emit('misc', 'P', '%%d');
+  emit('misc', 'P', '%d%%%d', ['i', 1], ['i', 2]);
+  emit('misc', 'P', '');
+  emit('misc', 'P', 'no conversions at all');
+  emit('misc', 'P', 'a%cb%cc', ['i', 65], ['i', 66]);
+  emit('misc', 'P', '%d %d %d %d %d', map { ['i', $_] } 1 .. 5);
+  emit('misc', 'P', '%d %s %c %x %lu %o', ['i', -7], ['s', 'str'], ['i', 90], ['i', 0xff], ['l', 4000000000], ['i', 8]);
+  emit('misc', 'P', '%s%s%s', ['s', 'a'], ['s', ''], ['s', 'c']);
+  emit('misc', 'P', '%d,%ld,%f,%s', ['i', 1], ['l', 2], ['d', bits_of_nv(3.5)], ['s', 'four']);
+  emit('misc', 'P', '%c%c%c', ['i', 0], ['i', 65], ['i', 0]);
+
+  # %s: widths, precisions, empty, null pointers
+  for my $s ('', 'a', 'abc', 'hello world', 'with  two spaces', "tab\there", 'x' x 40, "\xe9\xff") {
+    for my $f ('', '-', '0', '-0') {
+      for my $w (undef, 1, 5, 8, 30) {
+        for my $p (undef, 0, 1, 3, 40) {
+          emit('misc', 'P', spec($f, $w, $p, '', 's'), ['s', $s]);
+        }
+      }
+    }
+  }
+  for my $f ('', '-') {
+    for my $w (undef, 1, 8, 30) {
+      emit('misc', 'P', spec($f, $w, undef, '', 's'), ['S']);
+      emit('misc', 'P', spec($f, $w, 6, '', 's'), ['S']);
+      emit('misc', 'P', spec($f, $w, 40, '', 's'), ['S']);
+    }
+  }
+  emit('misc', 'P', 'x%sy%sz', ['S'], ['s', 'mid']);
+  # a null pointer is the string (null): the precision truncates it (docs/spec/fmt.md, "Choices beyond the C standard")
+  for my $p (0, 1, 3, 5) {
+    for my $w (undef, 8) {
+      emit('misc', 'P', spec('', $w, $p, '', 's'), ['S']);
+      emit('misc', 'P', spec('-', $w, $p, '', 's'), ['S']);
+    }
+  }
+  emit('misc', 'P', '[%.3s][%.0s][%8.2s]', ['S'], ['S'], ['S']);
+  # a length modifier that does not apply to the conversion is accepted and ignored
+  for my $m ('l', 'h', 'L') {
+    for my $c ('f', 'e', 'g', 'E', 'G') {
+      emit('misc', 'P', "%$m$c|%.3$m$c|%10.1$m$c", ['d', bits_of_nv(3.14159)], ['d', bits_of_nv(-2.5)], ['d', bits_of_nv(1e22)]);
+    }
+  }
+  for my $c ('d', 'i', 'u', 'x', 'X', 'o') {
+    emit('misc', 'P', "%L$c|%5L$c", ['i', 42], ['i', 65535]);
+  }
+  for my $m ('h', 'L') {
+    emit('misc', 'P', "%${m}s|%-6.2${m}s|%${m}c|%3${m}c", ['s', 'string'], ['s', 'xyz'], ['i', 65], ['i', 66]);
+  }
+
+  # %c: every kind of byte, widths
+  for my $ch (0, 1, 7, 9, 10, 13, 26, 31, 32, 37, 65, 97, 126, 127, 128, 200, 255, 256, 321, 65535, -1, -127, -128) {
+    for my $f ('', '-', '0') {
+      for my $w (undef, 1, 4) {
+        emit('misc', 'P', spec($f, $w, undef, '', 'c'), ['i', $ch]);
+      }
+    }
+  }
+
+  # invalid and unsupported specifications (copied as written, no argument consumed)
+  my @bad = (
+    ['%n'], ['a%nb'], ['%p'], ['%a'], ['%A'], ['%F'], ['%ls'], ['%lc'], ['%lld'], ['%lli'], ['%llu'],
+    ['%hhd'], ['%hld'], ['%lhd'], ['%Lld'], ['%hh'], ['%ll'], ['%lL'],
+    ['%z'], ['%y%d', ['i', 9]], ['%5z%d', ['i', 9]], ['%-*z%d', ['i', 9]], ['%*5d'], ['%.*5d'], ['%**d'],
+    ['%.5.3d'], ['%5-d'], ['%.5 d'], ['% %'], ['%5%'], ['%-%'], ['%.1%'], ['%l%'], ['%'], ['abc%'], ['%5'], ['%-'], ['%.'], ['%.5'], ['%*'], ['%.*'],
+    ['%l'], ['%h'], ['%L'], ['%-5.3'], ['%q%q'], ['%[x]'], ['%@'], ['100%'], ['%d%', ['i', 4]], ['%d%n%d', ['i', 1], ['i', 2]], ['%s%n', ['s', 'ab']],
+    ['%i%lli%i', ['i', 1], ['i', 3]], ['%ld%lld%ld', ['l', 1], ['l', 3]],
+    ['%e%p%e', ['d', bits_of_nv(1.5)], ['d', bits_of_nv(2.5)]],
+    ['%0*d%*z', ['i', 5], ['i', 3]], ['%hc'], ['%Ls'], ['%lf'], ['%hf'], ['%Ld'],
+  );
+  # the last five are ambiguous in the spec (a modifier with a conversion it is not listed for): not in the corpus
+  pop @bad for 1 .. 5;
+  for my $b (@bad) {
+    my ($f, @a) = @$b;
+    emit('misc', 'P', $f, @a);
+  }
+  emit('misc', 'P', '%*c%c', ['i', 3], ['i', 65], ['i', 66]);
+}
+
+# --- snprintf and vsnprintf with n of 0, 1, the length, one less and one more
+{
+  my @bases = (
+    ['%d', ['i', 12345]], ['%s', ['s', 'hello world']], ['%10d', ['i', -42]], ['[%-12s]', ['s', 'left']], ['%f', ['d', bits_of_nv(3.14159)]],
+    ['%e', ['d', bits_of_nv(-0.000123)]], ['%g', ['d', $PINF]], ['%.20g', ['d', bits_of_nv(0.1)]], ['abc', ], ['', ], ['%c', ['i', 65]], ['%c%c', ['i', 0], ['i', 66]],
+    ['%x|%o|%u', ['i', 0xabc], ['i', 8], ['i', 65535]], ['%%'], ['%#lx', ['l', 0xdeadbeef]], ['value=%+d, text=%s!', ['i', 7], ['s', 'seven']], ['%n'], ['%5%'],
+    ['%.30f', ['d', bits_of_nv(1.0)]], ['%.300f', ['d', bits_of_nv(1.0)]], ['%*d', ['i', 40], ['i', 1]], ['%s', ['S']],
+  );
+  for my $b (@bases) {
+    my ($f, @a) = @$b;
+    my ($out) = model($f, @a);
+    my $len = length $out;
+    my %ns = map { $_ => 1 } grep { $_ >= 0 } (0, 1, 2, 3, $len - 2, $len - 1, $len, $len + 1, $len + 2, $len + 9);
+    emit('snp', "N$_", $f, @a) for sort { $::a <=> $::b } keys %ns;
+    emit('snp', 'P', $f, @a);
+  }
+}
+
+# --- the integral value cross-check (tests/fmt/fastpath.c)
+{
+  my @ivals = (0, 1, 2, 3, 5, 9, 10, 11, 99, 100, 101, 255, 256, 999, 1000, 9999, 10000, 32767, 32768, 65535, 65536, 99999, 100000, 999999, 1000000, 16777215, 16777216,
+    123456789, 999999999, 1000000000, 2147483647, 2147483648, 4294967295, 4294967296, 4294967297, 12345678901, 999999999999, 1000000000000, 123456789012345, 999999999999999,
+    1000000000000000, 1234567890123456, 4503599627370495, 4503599627370496, 4503599627370497, 9007199254740991, 9007199254740992, 9007199254740994, 9007199254740996);
+  push @ivals, map { 2**$_ } 20 .. 52;
+  push @ivals, map { 2**$_ - 1 } 20 .. 53;
+  push @ivals, map { 10**$_ } 10 .. 15;
+  push @ivals, map { 3 * 10**$_ } 8 .. 15;
+  my %s;
+  @ivals = grep { !$s{$_}++ } @ivals;
+  my @vals = map { bits_of_nv($_ + 0) } @ivals;
+  push @vals, map { bits_of_nv(-$_) } grep { $_ } @ivals[0 .. 30];
+  push @vals, $ZERO, $NZERO;
+  my @fp = (undef, 0, 1, 2, 3, 5, 6, 10, 15, 16, 17, 18, 20, 25, 30, 40, 100);
+  my @fw = (undef, 20);
+  my $k = 0;
+  for my $conv (qw(f g G e)) {
+    for my $f (@flag_sets) {
+      for my $w (@fw) {
+        for my $p (@fp) {
+          for my $j (1) {
+            emit('fast', 'P', spec($f, $w, $p, '', $conv), ['d', $vals[($k * 7 + $j * 3) % @vals]]);
+            $k++;
+          }
+        }
+      }
+    }
+  }
+  # every value at the common precisions
+  for my $conv (qw(f g G)) {
+    for my $p (undef, 0, 17) {
+      emit('fast', 'P', spec('', undef, $p, '', $conv), ['d', $_]) for @vals;
+    }
+  }
+  emit('fast', 'P', spec('+', 25, 3, '', 'f'), ['d', $_]) for @vals;
+}
+
+# --- the stack test: the exact digits
+{
+  emit('stack', 'P', '%.1000f', ['d', $SUBMIN]);
+  emit('stack', 'P', '%.1074f', ['d', $SUBMIN]);
+  emit('stack', 'P', '%.0f', ['d', $MAXD]);
+  emit('stack', 'P', '%.1000e', ['d', $MAXD]);
+  emit('stack', 'P', '%.600g', ['d', $SUBMAX]);
+  emit('stack', 'P', '%.340f', ['d', $MIND]);
+  emit('stack', 'P', '%.20g', ['d', bits_of_nv(0.1)]);
+  emit('stack', 'P', '%f', ['d', $MAXD]);
+  emit('stack', 'P', '%-1010.1000f|%+d|%s|%10.3e', ['d', next_bits($SUBMIN, 1)], ['i', 5], ['s', 'tail'], ['d', bits_of_nv(12345.678)]);
+}
+
+# ------------------------------------------------------------------ the printf corpus of fmtio
+
+my @pc;
+{
+  my $f = sub ($fmt, @a) { push @pc, [$fmt, @a] };
+  $f->('%d', ['i', 12345]);
+  $f->('%5d|%-5d|%05d', ['i', 42], ['i', 42], ['i', 42]);
+  $f->('%+d % d %+d', ['i', 5], ['i', 5], ['i', -5]);
+  $f->('%x %X %#x %#o', ['i', 48879], ['i', 48879], ['i', 255], ['i', 8]);
+  $f->('%ld %lu %lx', ['l', -2147483648], ['l', 4294967295], ['l', 3735928559]);
+  $f->('%s and %s', ['s', 'one'], ['s', 'two']);
+  $f->('[%10s][%-10s][%.2s]', ['s', 'abc'], ['s', 'abc'], ['s', 'abc']);
+  $f->('%c%c%c', ['i', 72], ['i', 105], ['i', 33]);
+  $f->('%f %e %g', ['d', bits_of_nv(3.14159)], ['d', bits_of_nv(3.14159)], ['d', bits_of_nv(3.14159)]);
+  $f->('%.0f %.1f %.2f', ['d', bits_of_nv(2.5)], ['d', bits_of_nv(0.25)], ['d', bits_of_nv(1.005)]);
+  $f->('%.20g', ['d', bits_of_nv(0.1)]);
+  $f->('%g %g %g', ['d', bits_of_nv(1e-5)], ['d', bits_of_nv(100000)], ['d', bits_of_nv(1e6)]);
+  $f->('%f %f', ['d', $PINF], ['d', $NQNAN]);
+  $f->('%.30f', ['d', bits_of_nv(1.0)]);
+  $f->('%.400f', ['d', $SUBMIN]);
+  $f->('%.0f', ['d', $MAXD]);
+  $f->('%n %lld %p %5%');
+  $f->('100%% sure');
+  $f->('%*d|%-*d|%.*d', ['i', 6], ['i', 7], ['i', 6], ['i', 7], ['i', 6], ['i', 7]);
+  $f->('');
+  $f->('plain text, no conversions');
+  $f->('%s', ['S']);
+  $f->('%s', ['s', 'z' x 300]);
+  $f->('%.250d', ['i', 7]);
+  $f->('%400d', ['i', 7]);
+  $f->('%-400d|', ['i', 7]);
+  $f->('x' x 300 . '%d' . 'y' x 300, ['i', 5]);
+  $f->('%d %d %d %d %d %d', map { ['i', $_ * 111] } 1 .. 6);
+}
+
+# ------------------------------------------------------------------ write
+
+if ($opt{verify}) {
+  say STDERR "verify: $verified lines checked, $verify_bad difference(s) from the host's sprintf";
+}
+
+make_path($opt{out});
+sub write_file ($path, $text) {
+  open my $fh, '>:raw', $path;
+  print $fh $text;
+  close $fh;
+}
+my %max_lines = (default => 2500);
+my @names;
+for my $base (sort keys %set) {
+  my @l = $set{$base}->@*;
+  my $max = $max_lines{$base} // $max_lines{default};
+  my $parts = int((@l + $max - 1) / $max);
+  my $per   = int((@l + $parts - 1) / $parts);
+  for my $p (0 .. $parts - 1) {
+    my @chunk = splice @l, 0, $per;
+    my $name = $parts == 1 ? "$base.dat" : sprintf('%s%d.dat', $base, $p + 1);
+    die "name $name is not 8.3\n" unless $name =~ /^[a-z0-9]{1,8}\.dat$/;
+    write_file("$opt{out}/$name", join '', map { "$_\n" } @chunk);
+    push @names, [$name, scalar @chunk];
+  }
+}
+say "$_->[0] $_->[1]" for @names;
+
+make_path("$opt{fmtio}/data");
+{
+  my (@dat, @exp);
+  for my $c (@pc) {
+    my ($fmt, @a) = @$c;
+    my ($out) = model($fmt, @a);
+    push @dat, join "\t", 'P', esc_fmt($fmt), join(' ', map { arg_text($_) } @a), esc_fmt($out), length $out;
+    push @exp, "$out|";
+  }
+  push @exp, "ok";
+  write_file("$opt{fmtio}/data/pc.dat", join '', map { "$_\n" } @dat);
+  write_file("$opt{fmtio}/pc.expect", join '', map { "$_\n" } @exp);
+}

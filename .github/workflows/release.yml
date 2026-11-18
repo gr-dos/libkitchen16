@@ -1,0 +1,154 @@
+# main only changes by merging a PR, so a push to main is a merge. If
+# VERSION names a version without a tag, build, test and audit that merge
+# commit, package it, tag it v<VERSION> and publish a release with
+# libkitchen16-<VERSION>.zip, libkitchen16-<VERSION>-src.tar.gz and their .sha256. A
+# push whose VERSION is already tagged publishes no new release. Running
+# the workflow by hand on main does the same check, to bootstrap or retry
+# a release (README.md, "Releasing").
+#
+# Every run then gives each release that lacks one its source archive,
+# made from its tag (for a release made before there was
+# one), and checks every release's source archive against its tag.
+# Actions are pinned to the same commits as ci.yml.
+
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0  # the tags, to make and check each release's source archive
+
+      - name: Check version
+        id: version
+        run: |
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "releases are made from main only, not $GITHUB_REF" >&2
+            exit 1
+          fi
+          version=$(cat VERSION)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already released"
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "releasing v$version from $GITHUB_SHA"
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: shogo82148/actions-setup-perl@a99edab616eaa8a66bbc16363c77a83361e5f2ce # v1.44.3
+        with:
+          perl-version: 5.42.3
+          enable-modules-cache: false
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.version.outputs.new == 'true'
+        with:
+          path: build/tools
+          key: tools-ubuntu-26.04-${{ hashFiles('scripts/fetch-jwasm', 'scripts/fetch-watcom', 'scripts/fetch-libc16', 'patches/jwasm/*.patch') }}
+
+      - name: Install DOSBox-X
+        if: steps.version.outputs.new == 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends dosbox-x
+          dpkg-query -W dosbox-x
+
+      - name: Build, test, audit and package
+        if: steps.version.outputs.new == 'true'
+        run: |
+          make
+          make test
+          make dist
+
+      - name: Create release
+        if: steps.version.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo '```text'
+            cat build/stage/BUILD.txt
+            echo '```'
+            echo
+            echo "SHA-256 of libkitchen16-$VERSION.zip:"
+            echo
+            echo '```text'
+            cat "build/dist/libkitchen16-$VERSION.zip.sha256"
+            echo '```'
+            echo
+            echo "SHA-256 of libkitchen16-$VERSION-src.tar.gz, the source of $GITHUB_SHA:"
+            echo
+            echo '```text'
+            cat "build/dist/libkitchen16-$VERSION-src.tar.gz.sha256"
+            echo '```'
+            echo
+            echo 'Similarity audit (docs/AUDIT.txt in the archive):'
+            echo
+            echo '```text'
+            for lib in s/LIBK16 c/LIBK16C l/LIBK16L; do
+              echo "== ${lib#*/}.LIB"; cat "build/${lib%/*}/audit.txt"; echo
+            done
+            echo '```'
+          } > build/dist/notes.md
+          gh release create "v$VERSION" \
+            "build/dist/libkitchen16-$VERSION.zip" \
+            "build/dist/libkitchen16-$VERSION.zip.sha256" \
+            "build/dist/libkitchen16-$VERSION-src.tar.gz" \
+            "build/dist/libkitchen16-$VERSION-src.tar.gz.sha256" \
+            --target "$GITHUB_SHA" \
+            --title "libkitchen16 $VERSION" \
+            --notes-file build/dist/notes.md
+
+      # Only adds assets: a release's existing assets are never replaced.
+      - name: Attach missing source archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/src
+          for tag in $(gh release list --limit 1000 --json tagName --jq '.[].tagName'); do
+            version=${tag#v}
+            asset=libkitchen16-$version-src.tar.gz
+            if gh release view "$tag" --json assets --jq '.assets[].name' | grep -qxF "$asset"; then
+              continue
+            fi
+            echo "attaching $asset to $tag ($(git rev-parse "$tag^{commit}"))"
+            scripts/make-src "$tag" "$version" "build/src/$asset"
+            scripts/check-src "build/src/$asset" "$version" "$tag"
+            gh release upload "$tag" "build/src/$asset" "build/src/$asset.sha256"
+          done
+
+      - name: Check every release's source archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/check
+          for tag in $(gh release list --limit 1000 --json tagName --jq '.[].tagName'); do
+            version=${tag#v}
+            asset=libkitchen16-$version-src.tar.gz
+            dir=build/check/$tag
+            mkdir -p "$dir"
+            gh release download "$tag" --dir "$dir" --clobber \
+              --pattern "$asset" --pattern "$asset.sha256"
+            (cd "$dir" && sha256sum -c "$asset.sha256")
+            scripts/check-src "$dir/$asset" "$version" "$tag"
+          done
