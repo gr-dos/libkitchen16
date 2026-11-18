@@ -193,7 +193,6 @@ sub expect2 ($fn, $x, $y) {
     return (bits(atan2($x, $y)), '0');
   }
   if ($fn eq 'fmod') {
-    return () if (isnan($x) || isnan($y)) && ($y == 0 || isinf($x));   # open in the spec
     return $nan->() if isnan($x) || isnan($y);
     return ($QNAN, 'D') if $y == 0 || isinf($x);
     return ($xb, '0') if isinf($y) || $x == 0;
@@ -203,10 +202,9 @@ sub expect2 ($fn, $x, $y) {
   return (bits(1), '0') if $y == 0;
   return (bits(1), '0') if $x == 1;
   return $nan->() if isnan($x) || isnan($y);
-  return () if isinf($x) && $x < 0 && isfin($y) && !is_int($y);    # open: EDOM or "IEEE, no error"
-  return ($QNAN, 'D') if $x < 0 && isfin($y) && !is_int($y);
+  return ($QNAN, 'D') if isfin($x) && $x < 0 && isfin($y) && !is_int($y);    # -inf follows Annex F, below
   if ($x == 0 && $y < 0) {
-    return () if isinf($y);    # open in the spec: IEEE divide-by-zero or "no error"
+    return (bits($INF), '0') if isinf($y);    # Annex F: +inf, no errno (docs/spec/math.md)
     my $r = (neg0($x) && is_odd($y)) ? $NINF : $INF;
     return (bits($r), 'R');
   }

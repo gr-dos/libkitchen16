@@ -71,6 +71,23 @@ A function does not trap and does not set `errno` except where it says so; it ne
 | `pow(x, y)` | finite `x < 0` and finite non-integer `y` | overflow, underflow; `x = 0` and finite `y < 0`: returns `HUGE_VAL` (negative if `x` is `-0` and `y` an odd integer) with `ERANGE` | `pow(0, 0)` is `1`; `pow(x, ±inf)`, `pow(±inf, y)` and `pow(-1, ±inf)` follow IEEE 754 / C99 Annex F, without error; `pow(x<0, integer y)` has the sign `-` when `y` is odd |
 | `sqrt` | `x < 0` (`sqrt(-0)` is `-0`, not an error) | | `sqrt(+inf)` is `+inf` |
 
+### Choices beyond the C standard
+
+C89 7.5 requires `EDOM` for a domain error and `ERANGE` with `HUGE_VAL` for an overflow, and leaves the rest to the implementation. The choices here, each checked by `tests/math` (the expected results are written by `tests/math/gen` from this text), and what a program that also runs elsewhere must not assume:
+
+| Case | C89 | Here |
+|---|---|---|
+| underflow to zero (`exp`, `pow`, `ldexp`) | the value is zero; `errno` is implementation-defined | zero with the sign, and `ERANGE` |
+| `atan2` underflow (`atan2(1e-300, 1e300)`) | as above | the exact rounded result (a subnormal or a zero), **no** `errno` (other C libraries may set `ERANGE`) |
+| `fmod(x, 0)` and `fmod(±inf, y)` | zero or a domain error, implementation-defined | a domain error: the default NaN and `EDOM`. A NaN argument wins: `fmod(NaN, 0)`, `fmod(NaN, ±inf)`, `fmod(0, NaN)` and `fmod(±inf, NaN)` are a NaN with **no** `errno` |
+| `pow(±0, y)` for finite `y < 0` | a domain error or `HUGE_VAL`, implementation-defined | `HUGE_VAL` (`-HUGE_VAL` for `-0` and an odd integer `y`) with `ERANGE` |
+| `pow` with an infinity as `x` or `y`, and `pow(-1, ±inf)` | undefined | the C99 Annex F values, no `errno`: `pow(±0, -inf)` is `+inf` and `pow(±0, +inf)` is `+0`; for `|x| < 1`, `pow(x, -inf)` is `+inf` and `pow(x, +inf)` is `+0`; for `|x| > 1` the reverse; `pow(-1, ±inf)` and `pow(1, y)` are `1`; `pow(+inf, y)` is `+inf` for `y > 0` and `+0` for `y < 0`; `pow(-inf, y)` is the same, with the sign `-` for an odd integer `y`, and a non-integer `y` as an even one |
+| `pow(x, y)` for a negative finite `x` and a finite non-integer `y` | a domain error | `EDOM` and the default NaN; `x = -inf` is not finite and follows the row above |
+| `exp`, `sinh`, `cosh` near the edge of overflow | | overflow when the exact result exceeds `DBL_MAX`; the decision for an argument within one ulp of the threshold (`709.782712893384` for `exp`, `710.4758600739439` for `sinh` and `cosh`; `-745.1332191019412` for `exp`'s underflow) is not specified, and the corpus keeps clear of them |
+| `pow(x, y)` for an integer `y` of magnitude over 1,024 and `x` not a power of two | within 4 ulps | within 4 ulps (about 1 ulp measured); not exact where the exact result is a `double` |
+
+A program that moves to another C library must not rely on `errno` after `atan2`, on `HUGE_VAL` and `ERANGE` from `pow(0, y)`, on the sign of a NaN, or on the exactness of a result outside the table of "Results".
+
 ## Size and linking
 
 - The members use no static storage except constant tables, no allocation, and at most 448 bytes of stack, counting the call's arguments and return address and the helpers' own use (`pow` and `sin` and the others included). `tests/stack` measures it on the final library in all three models, with the real helpers, on the values that reach every path (error branches, special values, the widest argument reduction): the worst case is `pow`, 396 bytes in the large model (380 small, 384 compact), and the bound leaves about 50 bytes for code generation to change; `docs/DESIGN.md` §8 has the table. A consumer that links a math function must allow that on its stack. A function returning a `double` returns it as `docs/ABI.md` says: through an 8-byte static slot (its own), so it is not reentrant from an interrupt handler.
