@@ -34,6 +34,14 @@ words, the low word last (so lowest in memory), and the result of a
 C<__cdecl> function returning a C<double> is read through C<AX>, the offset
 of an 8-byte slot in C<DGROUP>.
 
+=item * the comparison operators of tests/abi/fpccmp.c: after every call of
+C<__FDC> or C<__EDC> the compiler branches only on the signed conditions
+(C<je>, C<jne>, C<jl>, C<jge>, C<jle>, C<jg>: ZF, SF and OF), which is why one
+flags result cannot make every operator right for a NaN (docs/spec/fpc.md,
+"Comparison"); a comparison with a literal C<0.0>, C<!x>, C<if (x)>, C<x && y>
+and C<x ? a : b> call no helper, and one with another constant or a zero that
+is not a literal does.
+
 =back
 
 Prints one line per check and exits 1 if any fails.
@@ -48,7 +56,7 @@ my $dir = 'tests/abi';
 mkdir $out unless -d $out;
 my $failed = 0;
 
-my %dis = map { $_ => disassemble($_) } qw(fpc dblcdecl);
+my %dis = map { $_ => disassemble($_) } qw(fpc dblcdecl fpccmp);
 
 my @F = qw(__FDA __FDC __FDD __FDFS __FDI4 __FDM __FDN __FDS __FDU4 __FSFD __I4FD __U4FD);
 my @E = qw(__EDA __EDC __EDD __EDM __EDS);
@@ -66,6 +74,28 @@ check('double result of a __cdecl function is read through AX',
   scalar $d =~ /\tcall\t+$call ptr _ext\n\tmov\t+bx,ax\n\tmov\t+ax,word ptr (?:ss:)?6\[bx\]\n/);
 check('a __cdecl function returning double returns the offset of an 8-byte slot in AX',
   scalar $d =~ /^_d_def:\n.*?\tmov\t+ax,offset DGROUP:L\$\d+\n.*?\tret(?:f)?\n/ms);
+
+my $c = $dis{fpccmp} // '';
+my %fn = $c =~ /^(\w+)_:\n(.*?)(?=^\w+_:\n|\z)/msg;
+my @cmp = grep { /^[vpb]_/ } sort keys %fn;
+my $want_call = $model eq 's' ? '__FDC' : '__EDC';
+check('the fixture of the comparison operators has all its functions', @cmp == 18);
+my @bad;
+for my $f (@cmp) {
+  my $body = $fn{$f};
+  my @after = $body =~ /\tcall\t+(?:near|far) ptr __[EF]DC\n(.*)/s;
+  my @jumps = ($after[0] // '') =~ /^\t(j\w+)\t/mg;
+  push @bad, "$f has no jump after the comparison" unless @jumps;
+  push @bad, "$f jumps on $_" for grep { !/^(?:je|jne|jl|jge|jle|jg|jmp)$/ } @jumps;
+}
+check('every comparison branches on the signed conditions only (je jne jl jge jle jg)', !@bad);
+say "  $_" for @bad;
+check('pointer comparisons use the E form in the compact and large models, the F form in the small',
+  !grep { $fn{$_} !~ /\t(?:call|jmp)\t+(?:near|far) ptr $want_call\n/ } grep { /^p_/ } @cmp);
+check('a comparison with a literal 0.0, !x, if (x), && and ?: calls no helper',
+  scalar(grep { $fn{$_} !~ /__[EF]DC/ } qw(z_eq z_ne z_lt z_le z_gt z_ge z_not z_if z_cond z_and zp_eq)) == 11);
+check('a comparison with another constant, or a zero that is not a literal, calls the helper',
+  !grep { $fn{$_} !~ /call\t+(?:near|far) ptr __FDC/ } qw(k_eq n_eq n_lt));
 
 exit $failed;
 
@@ -97,4 +127,5 @@ sub check ($what, $ok) {
   $ok = !!$ok;
   say $ok ? "ok $what" : "not ok $what";
   $failed = 1 unless $ok;
+  return $ok;
 }

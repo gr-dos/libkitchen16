@@ -13,3 +13,4 @@ d2f     0 tofloat d2f
 f2d     0 tofloat f2d
 regs    0 regs
 purity  0 purity
+nancmp  0 nancmp

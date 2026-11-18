@@ -43,7 +43,7 @@ What `wcc -fpc` calls instead of x87 instructions, and what `libkitchen16` provi
 |---|---|---|---|
 | `__FDA`, `__FDS`, `__FDM`, `__FDD` | `a + b`, `a - b`, `a * b`, `a / b` | `a` = `AX:BX:CX:DX`, `b` = 8 bytes at `SS:SI` | `AX:BX:CX:DX` |
 | `__EDA`, `__EDS`, `__EDM`, `__EDD` | the same, `b` reached through a far pointer | `b` at `ES:SI` | `AX:BX:CX:DX` |
-| `__FDC`, `__EDC` | compare `a` with `b` | as above | the flags, as `cmp` of two integers (spec) |
+| `__FDC`, `__EDC` | compare `a` with `b` | as above | the flags, as `cmp` of two integers; the compiler then branches on `je jne jl jge jle jg` only (spec, "Comparison") |
 | `__FDN` | `-a` | `AX:BX:CX:DX` | `AX:BX:CX:DX` |
 | `__FDI4`, `__FDU4` | `(long)a`, `(unsigned long)a`; `(int)`, `(unsigned)` read `AX` | `AX:BX:CX:DX` | `DX:AX` |
 | `__I4FD`, `__U4FD` | `(double)` of `long`, `unsigned long`; an `int` is widened first | `DX:AX` | `AX:BX:CX:DX` |
@@ -55,11 +55,17 @@ What `wcc -fpc` calls instead of x87 instructions, and what `libkitchen16` provi
 - Every helper changes `AX`, `BX`, `CX`, `DX` and the flags only (`__FDC` and `__EDC` only the flags), and preserves `SI`, `DI`, `BP`, `DS`, `ES`, `SS` and the direction flag. The call-site experiments did not establish which other registers callers keep live across a helper call, so the spec preserves all of them, as libc16 does for registers its experiments leave open.
 - Not provided, so a program using them fails to link rather than misbehave: the helpers for `long long` conversions (`__FDI8`, `__I8FD`) and for `float` arithmetic (`__FSA` and the other `__FS*`).
 
+## Comparisons
+
+From our own call-site experiments (`tests/abi/fpccmp.c`, `tests/check-abi`; `tests/fpc/nancmp.c` runs them): each of `== != < <= > >=` is one `__FDC` (or `__EDC`) call followed by a branch on a signed condition (`je jne jl jge jle jg`), with the operands in the order written. `<` and `>=` test the same flags and are complements, as are `<=` and `>`, so a helper cannot make all six operators right for a NaN: an unordered pair is reported as *greater*, so `>` and `>=` are true for a NaN and the other four are right (`docs/spec/fpc.md`, "What the compiler does with the flags" shows the cases). A comparison with a literal `0.0`, `!x`, `if (x)`, `x && y` and `x ? a : b` call no helper: the compiler tests the high 16 bits of the operand, which is wrong for `-0.0` and for subnormals below about `1.4e-309`, and a NaN is non-zero. Both are the compiler's convention, not the helpers'; the spec gives the idioms for a program that needs IEEE results.
+
 ## The public functions
 
 Every function declared in `<kitchen16.h>` and `<math.h>` is `__cdecl`, symbol `_name`, with libc16's rules for registers, far pointers and the direction flag. `errno` is libc16's. `HUGE_VAL` is the object `__kitchen16_huge_val`.
 
 ## Known issues
+
+- `x > y` and `x >= y` are true when either is a NaN, and a comparison with a literal `0.0`, `!x` and `if (x)` test only the high 16 bits (`-0.0` is non-zero and negative, a tiny subnormal is zero). Both come from `wcc -fpc`'s call sites and cannot be fixed in the helpers (`docs/spec/fpc.md`, "Comparison"; the workarounds are there and tested).
 
 - `wcc` folds an infinity constant in a `return` to zero (`double f(void) { return 1e999; }` returns 0). An infinity constant in a static initialiser is correct. That is why `HUGE_VAL` is an object.
 - A `double`-returning `__cdecl` function is not reentrant (its result is in a static slot).
