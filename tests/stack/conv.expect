@@ -1,0 +1,5 @@
+# the table of -v: one line per function, then the deepest of the group (the figures are in the output, NAME.OUT)
+/^strtod [0-9]+ \(case [0-9]+\)$/
+/^atof [0-9]+ \(case [0-9]+\)$/
+/^deepest [0-9]+ bytes of 6144$/
+ok
