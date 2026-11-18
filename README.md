@@ -77,6 +77,9 @@ JWasm), git, curl, unzip and xz, and `dosbox-x` for the tests:
     make test       # the ABI, link-map, 8086 and selective-linking checks,
                     # and the test programs under DOSBox-X, in every model
     make audit      # the similarity audit of each library
+    make size       # what each function adds to a program, in every model
+    make bench      # the time of each function on an emulated 4.77 MHz
+                    # 8088, in every model (several minutes)
     make MODEL=c test   # lib, test or audit for one model (s, c or l)
     make dist       # build/dist/libkitchen16-VERSION.zip and its .sha256, and make src
     make src        # build/dist/libkitchen16-VERSION-src.tar.gz and its .sha256

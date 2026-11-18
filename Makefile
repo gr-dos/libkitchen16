@@ -7,6 +7,11 @@
 #   make test     build the test programs against each library and run the
 #                 checks in tests/ (ABI, link maps, 8086 instructions,
 #                 selective linking) and the programs under DOSBox-X
+#   make size     link tests/size's profiles in each model and print what
+#                 each adds to a program (docs/DESIGN.md, section 8)
+#   make bench    time each function under DOSBox-X at a fixed 315 cycles
+#                 per millisecond, about a 4.77 MHz 8088, in each model
+#                 (several minutes; docs/DESIGN.md, section 8)
 #   make audit    compare each library's code with Open Watcom's runtime
 #                 libraries for the same model and print only scores
 #                 (decision 6)
@@ -76,6 +81,16 @@ all: lib stage
 lib test audit:
 	set -e; for m in $(MODELS); do $(MAKE) --no-print-directory MODEL=$$m $@; done
 
+# What each profile adds to a program, and the time of each function, in
+# every model, as the Markdown tables of docs/DESIGN.md, section 8.
+size:
+	set -e; for m in $(MODELS); do $(MAKE) --no-print-directory MODEL=$$m size-exes; done
+	tests/size/report $(foreach m,$(MODELS),$(m)=$(BUILD)/$(m)/tests/size) | tee $(BUILD)/size.md
+
+bench:
+	set -e; for m in $(MODELS); do $(MAKE) --no-print-directory MODEL=$$m bench-run; done
+	tests/bench/report $(foreach m,$(MODELS),$(m)=$(BUILD)/$(m)/tests/bench) | tee $(BUILD)/bench.md
+
 $(LIBS): FORCE
 	$(MAKE) --no-print-directory MODEL=$(word 2,$(subst /, ,$@)) lib
 
@@ -113,6 +128,9 @@ $(OBJ)/%.obj: src/%.c $(wildcard src/*.h include/*.h) $(TOOLS) $(LIBC16_DEP)
 	mkdir -p $(@D)
 	. ./$(TOOLS) && PATH=$$WATCOM/binl64:$$PATH && wcc $(WCFLAGS) -fo=$@ $<
 
+# tests/nofpu/nofpu.c is the one test object scripts/check-8086 skips: it
+# probes for a coprocessor with two x87 instructions, which an 8086 without
+# one treats as no-ops.
 # Test programs are built as a consumer builds (decision 2): the default
 # register convention, the library's model, -fpc, libkitchen16's and libc16's
 # headers only, and no Open Watcom library. Each directory tests/SUITE with a
@@ -177,7 +195,7 @@ members = $(firstword $(wildcard tests/$(1)/members.$(MODEL)) tests/$(1)/members
 
 test: $(SUITE_EXES) $(EXTRA_EXES) $(PLUS_EXES)
 	@echo '=== model $(MODEL)'
-	. ./$(TOOLS) && scripts/check-8086 $(MEMBERS) $(SUITE_EXES:.EXE=.obj) $(EXTRA_OBJS) $(TEST)/support/testio.obj
+	. ./$(TOOLS) && scripts/check-8086 $(MEMBERS) $(filter-out $(TEST)/nofpu/%,$(SUITE_EXES:.EXE=.obj)) $(EXTRA_OBJS) $(TEST)/support/testio.obj
 	. ./$(TOOLS) && PATH=$$WATCOM/binl64:$$PATH && tests/check-abi $(MODEL) $(TEST)/abi $(TCFLAGS)
 	tests/check-selective $(TEST) $(PLUS)
 	set -e; for s in $(SUITES); do \
@@ -185,6 +203,13 @@ test: $(SUITE_EXES) $(EXTRA_EXES) $(PLUS_EXES)
 	  if [ -n "$$m" ]; then tests/check-members $(TEST)/$$s $$m; fi; \
 	  tests/run-dos $(TEST)/$$s tests/$$s/cases; \
 	done
+
+size-exes: $(SIZE_EXES)
+
+# A fixed speed for timing (tests/run-dos, RUN_DOS_CYCLES); the output is
+# TEST/bench/*.OUT.
+bench-run: $(BENCH_EXE)
+	RUN_DOS_CYCLES=315 tests/run-dos $(TEST)/bench tests/bench/cases.bench
 
 # The similarity audit (decision 6) against the DOS runtime library, the
 # math libraries (software floating point, the 8087 libraries and the
@@ -261,5 +286,5 @@ clean:
 
 FORCE:
 
-.PHONY: all lib test audit stage install dist src clean FORCE
+.PHONY: all lib test audit size size-exes bench bench-run stage install dist src clean FORCE
 .DELETE_ON_ERROR:

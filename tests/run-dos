@@ -34,6 +34,12 @@ characters. Cases run in order, in one DOSBox-X session. The files in the
 directory F<data> next to CASES, if there is one, are copied into DIR
 first, for cases that read them.
 
+The machine has no floating-point coprocessor (C<fpu=false>), so every
+program runs as it would on an 8086 without an 8087; F<tests/nofpu>
+checks that. C<RUN_DOS_FPU=true> gives it one (to check that test).
+It runs as fast as it can (C<cycles=max>), or at C<RUN_DOS_CYCLES> cycles
+per millisecond if that is set, as C<make bench> does.
+
 Prints one line per case and exits 1 if any case fails.
 
 =cut
@@ -85,6 +91,8 @@ unlink grep { -e } "$dir/RESULT.TXT", map { "$dir/$_->{name}.OUT" } grep { defin
 write_file("$dir/RUN.BAT", join '', map { "$_\r\n" } @batch);
 
 my $abs = File::Spec->rel2abs($dir);
+my $fpu = $ENV{RUN_DOS_FPU} // 'false';
+my $cycles = $ENV{RUN_DOS_CYCLES} ? "fixed $ENV{RUN_DOS_CYCLES}" : 'max';
 write_file("$dir/DOSBOX.CNF", <<~"END");
   [sdl]
   output=surface
@@ -93,7 +101,8 @@ write_file("$dir/DOSBOX.CNF", <<~"END");
   [cpu]
   core=normal
   cputype=8086
-  cycles=max
+  fpu=$fpu
+  cycles=$cycles
   [autoexec]
   mount c "$abs"
   c:

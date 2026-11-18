@@ -49,6 +49,9 @@ jobs:
       - name: Test
         run: make test 2>&1 | tee build/test.log
 
+      - name: Size
+        run: make size 2>&1 | tee build/size.log
+
       - name: Audit and package
         run: make dist 2>&1 | tee build/dist.log
 
@@ -60,6 +63,7 @@ jobs:
             build/*/*.LIB
             build/make.log
             build/test.log
+            build/size.md
             build/dist.log
             build/*/audit.txt
             build/dist/

@@ -1,0 +1,6 @@
+# make bench: tests/run-dos at RUN_DOS_CYCLES=315. Not a test suite (no
+# file named cases): each line only has to exit 0.
+fpc  0 bench fpc
+fmt  0 bench fmt
+conv 0 bench conv
+math 0 bench math

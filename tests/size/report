@@ -1,0 +1,117 @@
+#!/usr/bin/env perl
+use 5.040;
+use warnings;
+use autodie;
+
+=head1 NAME
+
+report - what each tests/size profile adds to a program, in each model
+
+=head1 SYNOPSIS
+
+  tests/size/report MODEL=DIR...
+
+=head1 DESCRIPTION
+
+DIR holds one model's F<PROFILE.EXE>, F<PROFILE.MAP> and
+F<PROFILE.MEMBERS> from F<tests/size/size.c> (C<make size> links them).
+For each profile, prints what it adds over F<base.EXE>, which calls
+nothing of libkitchen16's:
+
+=over
+
+=item image
+
+the bytes added to the executable's load image (code and initialised
+data), from its C<MZ> header;
+
+=item memory
+
+the bytes added to what DOS must give the program to load it: the
+image and the minimum allocation (uninitialised data and the stack);
+
+=item DGROUP
+
+the bytes added to DGROUP, the near data a program has at most 64 KB
+of (from the map).
+
+=back
+
+Then lists the members of libkitchen16 and libc16 the C<perl> profile
+links that C<base> does not. Prints Markdown tables.
+
+=cut
+
+my @models = map { [split /=/, $_, 2] } @ARGV;
+die "usage: $0 MODEL=DIR...\n" unless @models && !grep { !defined $_->[1] } @models;
+
+my @profiles = (
+  [add      => 'one addition (`__FDA`)'],
+  [arith    => 'every `fpc` helper'],
+  [snprintf => '`snprintf("%g")`'],
+  [sprintf  => '`sprintf("%.20g")`'],
+  [printf   => '`printf("%g")` (with libc16\'s `FILE` output)'],
+  [strtod   => '`strtod`'],
+  [sqrt     => '`sqrt`'],
+  [sin      => '`sin`'],
+  [exp      => '`exp`'],
+  [log      => '`log`'],
+  [pow      => '`pow`'],
+  [atan2    => '`atan2`'],
+  [perl     => 'what perl16 uses: the helpers, `sprintf`, `vsprintf`, `fprintf`, `atof`, `atan2 cos exp log modf pow sin sqrt`'],
+  [all      => 'every function'],
+);
+
+sub slurp ($file) {
+  open my $fh, '<:raw', $file;
+  local $/;
+  return scalar <$fh>;
+}
+
+# image bytes and load bytes from the MZ header
+sub mz ($exe) {
+  my ($sig, $last, $pages, undef, $hdr, $min) = unpack 'a2 v v v v v', slurp($exe);
+  die "$exe: not an MZ executable\n" unless $sig eq 'MZ';
+  my $image = $pages * 512 - ($last ? 512 - $last : 0) - $hdr * 16;
+  return ($image, $image + $min * 16);
+}
+
+sub dgroup ($map) {
+  for (split /\n/, slurp($map)) {
+    return hex $1 if /^DGROUP\s+\S+\s+([0-9a-f]+)\s*$/i;
+  }
+  die "$map: no DGROUP\n";
+}
+
+sub members ($file) {
+  return map { chomp; $_ } grep { /\S/ } split /^/m, slurp($file);
+}
+
+sub measure ($dir, $name) {
+  my ($image, $load) = mz("$dir/$name.EXE");
+  return { image => $image, load => $load, dgroup => dgroup("$dir/$name.MAP") };
+}
+
+my %base = map { $_->[0] => measure($_->[1], 'base') } @models;
+
+say '| Profile | ', join(' | ', map { "$_->[0]: image / memory / DGROUP" } @models), ' |';
+say '|---|', join('|', map { '---:' } @models), '|';
+for my $p (@profiles) {
+  my ($name, $what) = @$p;
+  my @cells;
+  for my $m (@models) {
+    my $s = measure($m->[1], $name);
+    my $b = $base{ $m->[0] };
+    push @cells, join ' / ', map { $s->{$_} - $b->{$_} } qw(image load dgroup);
+  }
+  say "| $what | ", join(' | ', @cells), ' |';
+}
+
+say '';
+say 'Members the `perl` profile adds over `base`:';
+say '';
+for my $m (@models) {
+  my %had = map { $_ => 1 } members("$m->[1]/base.MEMBERS");
+  my @new = grep { !$had{$_} } members("$m->[1]/perl.MEMBERS");
+  say "- $m->[0]: ", join(' ', map { "`$_`" } @new);
+}
