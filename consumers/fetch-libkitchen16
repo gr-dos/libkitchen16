@@ -9,7 +9,7 @@
 # program keeps a copy as scripts/fetch-libkitchen16 and changes version
 # and sha256 together, deliberately, to the values of a published release
 # (its .sha256 asset); see docs/CONSUMERS.md, "Using libkitchen16". The
-# values below are placeholders until the first release.
+# values below are those of release 0.01.
 #
 # usage: scripts/fetch-libkitchen16 [DIR]     (default: build/libkitchen16)
 #
@@ -19,7 +19,7 @@
 set -eu
 
 version=0.01
-sha256=0000000000000000000000000000000000000000000000000000000000000000
+sha256=0c3b27f9de469a6a7071bb27adde191484ccd5bde31c72a6e523afc9e4918379
 
 url=${LIBKITCHEN16_URL:-https://github.com/gr-dos/libkitchen16/releases/download/v$version/libkitchen16-$version.zip}
 dir=${1:-build/libkitchen16}
