@@ -81,17 +81,17 @@ int main(void)
     conv(__LINE__, 0x3FF0, 0, 0, 0, len, 0);
 
     /* 2**53 + 1 followed by zeros is the tie, to even: 2**53 */
-    reset(); put("9007199254740993"); fill('0', N);
+    reset(); put("9007199254740993"); fill('0', N); put("e-5000");
     conv(__LINE__, 0x4340, 0, 0, 0, len, 0);
 
     /* with a 1 as the last of the 5000 digits it is above the tie: 2**53 + 2 */
-    reset(); put("9007199254740993"); fill('0', N - 1); put("1");
+    reset(); put("9007199254740993"); fill('0', N - 1); put("1"); put("e-5000");
     conv(__LINE__, 0x4340, 0, 0, 1, len, 0);
 
     /* 2**53 + 3 is also a tie, to even: 2**53 + 4; just below it is 2**53 + 2 */
-    reset(); put("9007199254740995"); fill('0', N);
+    reset(); put("9007199254740995"); fill('0', N); put("e-5000");
     conv(__LINE__, 0x4340, 0, 0, 2, len, 0);
-    reset(); put("9007199254740994"); fill('9', N);
+    reset(); put("9007199254740994"); fill('9', N); put("e-5000");
     conv(__LINE__, 0x4340, 0, 0, 1, len, 0);
 
     /* N nines and the exponent that makes the value just below 10: rounds to 10 */
