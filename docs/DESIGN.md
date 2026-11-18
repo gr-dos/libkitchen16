@@ -76,3 +76,14 @@ A format engine and `strtod` are linked whole by the programs that use them. The
 ## 8. Measurements
 
 Recorded when each module is implemented.
+
+Figures from the first implementation, in the small model unless stated; sizes are bytes of code and data from the library members. Stack is the deepest use above the caller's frame, return addresses included.
+
+| Module | Size | Stack |
+|---|---|---|
+| `fpc` | `fdcore` 0x265, `fdadd` 0x133, `fdmul` 0xB4, `fddiv` 0xDC, `fdcmp` 0xB9, the rest under 0xD3 | at most about 54 bytes (`__FDM`, large model), measured by the `regs` test to stay under 72 |
+| `fmt`, `fmtio` | engine `fmt` 6,017 bytes (object); `sprintf` 347 more; `vfprintf` 482 | 502 bytes small, 540 compact and large (spec bound 900); `vfprintf` adds a 128-byte block buffer |
+| `conv` | `strtod` 3,045 bytes (object), `atof` 294; 672 bytes of static data | about 70 to 100 bytes, estimated from the code, not measured |
+| `math` | from `fabs` (about 70 bytes) to `pow` with its `k_*` members (about 11 KB) | `pow` 332 small, 346 large, measured with the helpers' own use added, about 394 large (spec bound 400, so little margin) |
+
+The `pow` and trigonometric figures were measured against a throwaway helper stub that recorded the lowest stack pointer at each helper entry; the helpers' own use is added from the `fpc` figures. The `conv` stack figure and the library sizes are not yet measured on the final library. `strtod` and the math functions keep static data (`strtod`'s big integers, and an 8-byte result slot for every `double`-returning function), so they are not reentrant.
