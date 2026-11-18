@@ -13,7 +13,7 @@ perl16's audit (`docs/M3-RUNTIME-AUDIT.md`, sections 5.2, 8 and 9) gives the cal
 
 A consumer gets libkitchen16 from a release, as it gets libc16 (libc16's `docs/CONSUMERS.md`, "Using libc16"):
 
-- **`scripts/fetch-libkitchen16`**, a copy of `consumers/fetch-libkitchen16` here, pins one release by `version` and `sha256`. It downloads `libkitchen16-<version>.zip` from the `v<version>` release, checks its SHA-256 before unpacking it, and unpacks its `libkitchen16-<version>/` directory as `build/libkitchen16`. CI and releases never follow a branch. The values in the canonical copy are placeholders until the first release; a consumer sets them to the release's (the `.sha256` asset, also in the release notes).
+- **`scripts/fetch-libkitchen16`**, a copy of `consumers/fetch-libkitchen16` here, pins one release by `version` and `sha256`. It downloads `libkitchen16-<version>.zip` from the `v<version>` release, checks its SHA-256 before unpacking it, and unpacks its `libkitchen16-<version>/` directory as `build/libkitchen16`. CI and releases never follow a branch. The values in the canonical copy are those of release 0.01 (the first); a consumer sets them to the release it wants (the `.sha256` asset, also in the release notes).
 - **`LIBKITCHEN16_ROOT`** (default `build/libkitchen16`) is the tree the consumer's `Makefile` uses: an unpacked release, or a checkout built with `make`, whose `build/stage` has the same layout.
 - A consumer that uses libkitchen16 also pins libc16 (`scripts/fetch-libc16`), a version equal to or newer than the one libkitchen16's `BUILD.txt` names, and links both libraries of its memory model.
 - **The toolchain** is the Open Watcom snapshot the release was built with; `tools/fetch-watcom` in the release downloads it.

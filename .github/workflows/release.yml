@@ -141,6 +141,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The tag of a release made by this run was created on the server,
+          # after the checkout: fetch it before checking against it.
+          git fetch --tags --force origin
           mkdir -p build/check
           for tag in $(gh release list --limit 1000 --json tagName --jq '.[].tagName'); do
             version=${tag#v}
