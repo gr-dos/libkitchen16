@@ -47,11 +47,11 @@ The argument for `*` comes before the argument converted, width first.
 | `o` | the same | unsigned octal |
 | `x`, `X` | the same | unsigned hexadecimal, lower case (`abcdef`) or upper case (`ABCDEF`) |
 | `c` | `int` | the character, converted to `unsigned char` |
-| `s` | `const char *` (far in the compact and large models) | the characters of the string up to but not including its null character, or up to the precision if there is one. A null pointer prints as `(null)` |
+| `s` | `const char *` (far in the compact and large models) | the characters of the string up to but not including its null character, or up to the precision if there is one. A null pointer prints as the six characters `(null)`, and width, precision and `-` apply to them as to any string: `%.3s` gives `(nu`, `%8s` gives two spaces and `(null)`, `%-8s` gives `(null)` and two spaces, `%.0s` gives nothing (C89 leaves a null pointer undefined; see "Choices beyond the C standard") |
 | `e`, `E` | `double` | `[-]d.ddde±dd`, `E` for `E` |
 | `f` | `double` | `[-]ddd.ddd` |
 | `g`, `G` | `double` | `e` or `f` style, as below |
-| `%` | none | a `%` (the whole specification must be `%%`) |
+| `%` | none | a `%`. The whole specification must be `%%`: `%5%`, `%-%`, `%.1%`, `%l%` and `% %` are invalid specifications, copied as written (C89 7.9.6.1 says only that the complete specification shall be `%%`) |
 
 An integer conversion with a precision gives at least that many digits, with leading zeros, and the `0` flag is then ignored; the default precision is 1; a zero value with precision 0 gives no digits (but `#` with `o` gives `0`). The sign of `d` and `i` is `-` for a negative value, otherwise `+` with the `+` flag, otherwise a space with the space flag. `#` gives `o` a leading `0` if the first digit isn't already `0` (by precision), and gives a non-zero value in `x` and `X` the prefix `0x` or `0X`.
 
@@ -75,6 +75,19 @@ An integer conversion with a precision gives at least that many digits, with lea
 ### Invalid and unsupported specifications
 
 `%n`, `%p`, `%a`, `%A`, `%ls`, `%lc`, `%lld` and every other conversion specifier or length modifier not listed are **not supported**. A specification that is not valid is copied to the output as written, from the `%` through the offending character, and consumes no argument; formatting continues after it. (So `%n` gives the two characters `%n`, and `%lld` gives `%ll` and then, since `d` is an ordinary character at that point, `d`.) A format that ends inside a specification copies what it has. A specification is invalid if its `*` is followed by digits, or if a modifier follows another modifier.
+
+### Choices beyond the C standard
+
+Where C89 7.9.6.1 leaves the behaviour undefined, or an implementation to define, this spec fixes one, and `tests/fmt` checks it (`tests/fmt/gen` writes the expected output from this text; the host's `sprintf` agrees except where `tests/fmt/README.txt` lists a difference). A program that must also run with another C library must not rely on these:
+
+| Case | C89 | Here | Portability |
+|---|---|---|---|
+| `%s` with a null pointer | undefined | prints `(null)` as a string: width, `-` and precision apply (`%.3s` gives `(nu`) | other C libraries differ (some print `(null)` only without a precision, some crash); do not pass a null pointer |
+| `%5%`, `%-%`, `%.1%`, `%l%` | undefined (the specification shall be `%%`) | invalid: copied as written, no argument consumed, formatting continues after the `%` | other C libraries differ in what they print; write `%%` |
+| `h`, `l` or `L` on a conversion they do not apply to (`%lf`, `%hf`, `%Ld`, `%hs`, `%hc`) | undefined | accepted and ignored, as if absent; `ls` and `lc` (C99 wide) are the exceptions: invalid, copied as written | |
+| `%n`, `%p`, `%a`, `%A`, `%lld`, `%zu`, `%jd`, `%td` | `%n` and `%p` defined; the rest C99 | invalid, copied as written, no argument consumed | a program must not use them |
+| Output over 32767 characters | (an `int` count) | -1 and `errno` `ERANGE`; the 32768th character is never delivered, so at most 32767 characters and the null stay in the buffer | |
+| `-nan` | not defined (C89 has no NaN) | a NaN with the sign bit set prints `-nan`, as C99's `printf` does in common implementations | a program that compares output text with another library's must allow `nan` |
 
 ## Memory and stack
 

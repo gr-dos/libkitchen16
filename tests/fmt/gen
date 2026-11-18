@@ -305,9 +305,8 @@ sub model ($fmt, @args) {
     if ($i >= $n) { $invalid_seen = 1; $out .= substr($fmt, $start); last }
     my $conv = substr($fmt, $i, 1);
     my $between = $i - $start > 1;
-    my $ok = $conv =~ /^[diuoxX]$/ ? $mod =~ /^[hl]?$/
-           : $conv =~ /^[eEfgG]$/  ? $mod =~ /^L?$/
-           : $conv =~ /^[cs]$/     ? $mod eq ''
+    my $ok = $conv =~ /^[diuoxXeEfgG]$/ ? 1    # a modifier that does not apply is ignored
+           : $conv =~ /^[cs]$/     ? $mod ne 'l'
            : $conv eq '%'          ? !$between
            : 0;
     if (!$ok) { $bad->(); next }
@@ -679,6 +678,26 @@ emit('dblspec', 'P', 'x%fy%ez', ['d', $PINF], ['d', $NQNAN]);
     }
   }
   emit('misc', 'P', 'x%sy%sz', ['S'], ['s', 'mid']);
+  # a null pointer is the string (null): the precision truncates it (docs/spec/fmt.md, "Choices beyond the C standard")
+  for my $p (0, 1, 3, 5) {
+    for my $w (undef, 8) {
+      emit('misc', 'P', spec('', $w, $p, '', 's'), ['S']);
+      emit('misc', 'P', spec('-', $w, $p, '', 's'), ['S']);
+    }
+  }
+  emit('misc', 'P', '[%.3s][%.0s][%8.2s]', ['S'], ['S'], ['S']);
+  # a length modifier that does not apply to the conversion is accepted and ignored
+  for my $m ('l', 'h', 'L') {
+    for my $c ('f', 'e', 'g', 'E', 'G') {
+      emit('misc', 'P', "%$m$c|%.3$m$c|%10.1$m$c", ['d', bits_of_nv(3.14159)], ['d', bits_of_nv(-2.5)], ['d', bits_of_nv(1e22)]);
+    }
+  }
+  for my $c ('d', 'i', 'u', 'x', 'X', 'o') {
+    emit('misc', 'P', "%L$c|%5L$c", ['i', 42], ['i', 65535]);
+  }
+  for my $m ('h', 'L') {
+    emit('misc', 'P', "%${m}s|%-6.2${m}s|%${m}c|%3${m}c", ['s', 'string'], ['s', 'xyz'], ['i', 65], ['i', 66]);
+  }
 
   # %c: every kind of byte, widths
   for my $ch (0, 1, 7, 9, 10, 13, 26, 31, 32, 37, 65, 97, 126, 127, 128, 200, 255, 256, 321, 65535, -1, -127, -128) {
