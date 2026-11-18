@@ -75,15 +75,30 @@ A format engine and `strtod` are linked whole by the programs that use them. The
 
 ## 8. Measurements
 
-Recorded when each module is implemented.
+### Stack
 
-Figures from the first implementation, in the small model unless stated; sizes are bytes of code and data from the library members. Stack is the deepest use above the caller's frame, return addresses included.
+Measured by `tests/stack` on the final library, in each model, with the real `fpc` helpers linked: the stack below the call's stack pointer is filled with a pattern, one call is made with interrupts off, and the lowest byte changed is the high-water mark. The figure includes the call's arguments, its return address and every function below it, the helpers too. The inputs are every value of a set (zeros, subnormals, the limits of the format, 1e22 and 1e300 for the argument reduction, the edges of overflow and underflow, infinities, a NaN) for each function of one argument, every pair of a smaller set for those of two, hard cases of `pow` and `ldexp`, and long, halfway and out-of-range strings for `strtod`, so the error branches and the nested helper calls are in it. `make test` runs it (`tests/stack/cases`; the output of `-v`, in `build/MODEL/tests/stack/*.OUT`, is the table) and fails if a function is over the bound of its spec.
 
-| Module | Size | Stack |
-|---|---|---|
-| `fpc` | `fdcore` 0x265, `fdadd` 0x133, `fdmul` 0xB4, `fddiv` 0xDC, `fdcmp` 0xB9, the rest under 0xD3 | at most about 54 bytes (`__FDM`, large model), measured by the `regs` test to stay under 72 |
-| `fmt`, `fmtio` | engine `fmt` 6,017 bytes (object); `sprintf` 347 more; `vfprintf` 482 | 502 bytes small, 540 compact and large (spec bound 900); `vfprintf` adds a 128-byte block buffer |
-| `conv` | `strtod` 3,045 bytes (object), `atof` 294; 672 bytes of static data | about 70 to 100 bytes, estimated from the code, not measured |
-| `math` | from `fabs` (about 70 bytes) to `pow` with its `k_*` members (about 11 KB) | `pow` 332 small, 346 large, measured with the helpers' own use added, about 394 large (spec bound 400, so little margin) |
+| Function | Small | Compact | Large | Bound (spec) |
+|---|---|---|---|---|
+| `fpc` helper, the deepest (`__FDM`) | 44 | 48 | 54 | 64 |
+| `strtod` | 74 | 80 | 82 | 160 |
+| `atof` (one more call) | 84 | 94 | 98 | 160 |
+| `snprintf`, the widest format | 494 | 522 | 530 | 900 |
+| `fprintf` to a file, all of libc16's `fwrite` and DOS below it | 806 | 846 | 862 | `fmt`'s plus 160 plus libc16's |
+| `pow`, the deepest of `math` | 380 | 384 | 396 | 448 |
+| `log10` | 364 | 370 | 380 | 448 |
+| `sin`, `cos`, `tan` (1e22) | 340 | 352 | 362 | 448 |
+| `log` | 342 | 348 | 358 | 448 |
+| `atan2` | 300 | 302 | 312 | 448 |
+| `sqrt` | 114 | 116 | 120 | 448 |
+| `fmod` | 94 | 92 | 94 | 448 |
+| `fabs` | 12 | 16 | 18 | 448 |
 
-The `pow` and trigonometric figures were measured against a throwaway helper stub that recorded the lowest stack pointer at each helper entry; the helpers' own use is added from the `fpc` figures. The `conv` stack figure and the library sizes are not yet measured on the final library. `strtod` and the math functions keep static data (`strtod`'s big integers, and an 8-byte result slot for every `double`-returning function), so they are not reentrant.
+The helper figures have the measuring function's own 18 bytes taken off. The other `math` functions are between these (`tests/stack` prints each). `fprintf` is measured with interrupts on once DOS has turned them on, so it can include a few tens of bytes of a timer interrupt; every other figure is exact. The `math` bound was 400 before it was measured: `pow` is 396 in the large model, so the bound is 448 (about 50 bytes for a change in code generation), and a program must allow the measured figure.
+
+`strtod` and the `math` functions keep static data (`strtod`'s two big integers, 672 bytes, and an 8-byte result slot for every `double`-returning function), so they are not reentrant.
+
+### Size
+
+Bytes of code and data in the small model, from the sessions' reports (not re-measured here): `fdcore` 0x265, `fdadd` 0x133, `fdmul` 0xB4, `fddiv` 0xDC, `fdcmp` 0xB9, the other `fpc` members under 0xD3; `fmt` 6,017 (object), `sprintf` 347 more, `vfprintf` 482; `strtod` 3,045 (object), `atof` 294; `fabs` about 70 bytes up to `pow` with its `k_*` members about 11 KB. The libraries are 72,704 (`LIBK16.LIB`), 75,264 and 77,824 bytes.

@@ -49,7 +49,7 @@ Converts the initial portion of the string `nptr` to a `double`.
 ## Size and stack
 
 - The members use no static storage that grows with the input. The exact conversion works on a bounded buffer of digits and a big integer of a size that depends only on the format: about 1,100 bits for the largest and smallest values. A string of any length converts with the same bounded memory.
-- Stack use is at most 700 bytes for any input, measured and recorded in `docs/DESIGN.md`.
+- Stack use is at most 160 bytes for any input, counting the call's arguments and return address (`atof`'s one more call too). `tests/stack` measures it on the final library, in every model, on short, 800-digit and longer, halfway and out-of-range strings: 84, 94 and 98 bytes for `atof` (74, 80 and 82 for `strtod`); `docs/DESIGN.md` §8 has the table. The two big integers are static (672 bytes), so `strtod` is not reentrant.
 - A program that calls neither function links none of these members.
 
 ## Must

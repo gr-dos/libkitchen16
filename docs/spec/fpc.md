@@ -55,7 +55,7 @@ Each member is assembled or compiled for the small, compact and large models. He
 - A helper changes `AX`, `BX`, `CX`, `DX` and the flags, and nothing else. It preserves `SI`, `DI`, `BP`, `DS`, `ES` and `SS` (the `E` forms do not change `ES` or `SI`), and leaves the direction flag as it found it.
 - `__FDC` and `__EDC` change only the flags: they preserve `AX`, `BX`, `CX` and `DX` too.
 - A helper never writes its memory operand.
-- A helper uses no more than 64 bytes of stack and calls nothing outside libkitchen16's helpers.
+- A helper uses no more than 64 bytes of stack and calls nothing outside libkitchen16's helpers. `tests/stack` measures each helper on every pair of the values it tries, with the function that calls it taken off: at most 44 bytes small, 48 compact and 54 large (`__FDM`, the deepest, its return address included).
 
 ## Arithmetic: `+ - * /`, `-`
 

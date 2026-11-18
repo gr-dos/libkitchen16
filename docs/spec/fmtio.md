@@ -26,7 +26,7 @@ C89 7.9.6.1 (`fprintf`), 7.9.6.3 (`printf`), 7.9.6.7 (`vfprintf`) and 7.9.6.8 (`
 - If more than 32767 characters are written, all of them are written and the function returns -1 with `errno` set to `ERANGE`: the count does not fit in an `int`. (This differs from an output error only in `errno`.)
 - A null `fp`, or a stream not open for writing, is an error, returned as above without writing; it is not a trap.
 - The output is not formatted into a buffer of its own size: a call with an output of any length uses a bounded amount of memory, and the characters are handed to `fwrite` in blocks (of 128 characters or fewer) as they are produced, never one character per call. libc16's streams are unbuffered, so this is what keeps the number of DOS calls low.
-- No static storage; the functions are reentrant as far as `fwrite` is. Stack use is `fmt`'s plus at most 160 bytes.
+- No static storage; the functions are reentrant as far as `fwrite` is. Stack use is `fmt`'s plus at most 160 bytes for `vfprintf`'s own block buffer and frame, and whatever libc16's `fwrite`, `write` and DOS use below it: `tests/stack` measures `fprintf` to a file at 806 bytes small, 846 compact and 862 large model in all, with `%.1000f` and the other widest formats.
 
 ## Linking
 
