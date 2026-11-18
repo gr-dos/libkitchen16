@@ -1,0 +1,29 @@
+/* floor (C89 7.5.6.3): on the bits, no helper. */
+
+#define KINT_BUMP
+#include "kint.h"
+
+double __cdecl floor(double x)
+{
+    kdbl u;
+    word frac[4];
+    int e;
+
+    u.d = x;
+    e = (int)K_BE(u) - 1023;
+    if (e >= 52)
+        return x;               /* integral, infinity or NaN */
+    if (e < 0) {
+        if (K_ISZERO(u))
+            return x;
+        if (K_SIGN(u)) {
+            u.d = -1.0;
+            return u.d;
+        }
+        K_SETZERO(u, 0);
+        return u.d;
+    }
+    if (ktrunc(&u, e, frac) && K_SIGN(u))
+        kbump(&u, e);
+    return u.d;
+}
