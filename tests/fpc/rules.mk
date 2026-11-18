@@ -3,6 +3,6 @@
 # which is linked into regs only.
 
 $(TEST)/fpc/regs.EXE: $(TEST)/fpc/lib/regscall.obj
-$(PLUS)/fpc/regs.EXE: $(TEST)/fpc/lib/regscall.obj
+$(TEST)/plus/fpc/regs.EXE: $(TEST)/fpc/lib/regscall.obj
 
 EXTRA_OBJS += $(TEST)/fpc/lib/regscall.obj
